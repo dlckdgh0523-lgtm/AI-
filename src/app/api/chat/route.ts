@@ -12,6 +12,39 @@ const client = new Anthropic();
 const MODEL = "claude-opus-4-8";
 const MAX_ITERATIONS = 6;
 
+const FOLLOWUP_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    questions: {
+      type: "array" as const,
+      items: { type: "string" as const },
+    },
+  },
+  required: ["questions"],
+  additionalProperties: false,
+};
+
+/** 답변 맥락에 이어질 후속 유도질문 3개 생성 (사용자 관점의 짧은 질문) */
+async function generateFollowups(question: string, answer: string): Promise<string[]> {
+  const res = await client.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 400,
+    output_config: { format: { type: "json_schema", schema: FOLLOWUP_SCHEMA } },
+    system:
+      "당신은 쇼핑·소비자권리 상담의 후속 질문을 제안하는 도우미입니다. " +
+      "직전 답변에 이어 사용자가 실제로 궁금해할 만한 짧은 후속 질문 3개를 생성하세요. " +
+      "각 질문은 20자 내외, 사용자 1인칭 말투(예: '반품 배송비는 얼마야?'), 서로 다른 측면을 다룹니다. " +
+      "답변에 이미 다 나온 내용은 피하고, 한 걸음 더 들어가는 질문으로 만드세요.",
+    messages: [
+      { role: "user", content: `[사용자 질문]\n${question}\n\n[답변 요약]\n${answer.slice(0, 1500)}` },
+    ],
+  });
+  const text = res.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text;
+  if (!text) return [];
+  const parsed = JSON.parse(text) as { questions: string[] };
+  return parsed.questions.slice(0, 3);
+}
+
 /**
  * 오케스트레이터 에이전트 루프 + SSE 스트리밍.
  *
@@ -108,6 +141,12 @@ export async function POST(req: Request) {
               output_tokens: totalOutputTokens,
               cache_read: response.usage.cache_read_input_tokens ?? 0,
             };
+            // 후속 유도질문 생성 (저비용 Haiku, 실패해도 무시)
+            try {
+              const suggestions = await generateFollowups(userQuestion, answerText);
+              if (suggestions.length) send({ type: "suggestions", items: suggestions });
+            } catch { /* 유도질문 생성 실패는 무시 */ }
+
             send({ type: "done", usage });
             void logConversation({ question: userQuestion, answer: answerText, traces: traceLog, usage });
             break;

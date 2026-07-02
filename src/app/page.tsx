@@ -46,6 +46,7 @@ const EXAMPLES = [
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [traces, setTraces] = useState<TraceEvent[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [showTrace, setShowTrace] = useState(true);
@@ -56,6 +57,7 @@ export default function Home() {
     const history = [...messages, { role: "user" as const, content: text }];
     setMessages([...history, { role: "assistant", content: "" }]);
     setTraces([]);
+    setSuggestions([]);
     setInput("");
     setStreaming(true);
 
@@ -191,6 +193,9 @@ export default function Home() {
           },
         ]);
         break;
+      case "suggestions":
+        setSuggestions((event.items as string[]) ?? []);
+        break;
     }
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }
@@ -253,6 +258,21 @@ export default function Home() {
                 </div>
               </div>
             ))}
+            {/* 후속 유도질문 칩 (작은 박스) */}
+            {suggestions.length > 0 && !streaming && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                <span className="w-full text-xs text-zinc-400">이어서 물어보기</span>
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => send(s)}
+                    className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-700 hover:border-blue-400 hover:bg-blue-100"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
         </main>

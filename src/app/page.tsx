@@ -12,13 +12,20 @@ interface ChatMessage {
 type TraceEvent =
   | { kind: "iteration"; n: number }
   | { kind: "thinking"; text: string }
-  | { kind: "tool_use"; id: string; name: string; input: unknown }
-  | { kind: "tool_result"; id: string; name: string; summary: string; result: unknown };
+  | { kind: "agent_start"; agent: string; label: string; task: string }
+  | { kind: "agent_done"; agent: string; label: string; usage?: { input_tokens: number; output_tokens: number } }
+  | { kind: "tool_use"; id: string; name: string; input: unknown; agent?: string }
+  | { kind: "tool_result"; id: string; name: string; summary: string; result: unknown; agent?: string };
 
 const TOOL_LABELS: Record<string, string> = {
   search_products: "🛒 상품 검색",
   search_reviews: "📝 후기 검색",
   search_law: "⚖️ 법령 그래프 검색",
+};
+
+const AGENT_META: Record<string, { icon: string; color: string }> = {
+  shopping: { icon: "🛒", color: "border-blue-700 bg-blue-950" },
+  law: { icon: "⚖️", color: "border-purple-700 bg-purple-950" },
 };
 
 const EXAMPLES = [
@@ -109,6 +116,28 @@ export default function Home() {
       case "iteration":
         setTraces((prev) => [...prev, { kind: "iteration", n: event.n as number }]);
         break;
+      case "agent_start":
+        setTraces((prev) => [
+          ...prev,
+          {
+            kind: "agent_start",
+            agent: event.agent as string,
+            label: event.label as string,
+            task: event.task as string,
+          },
+        ]);
+        break;
+      case "agent_done":
+        setTraces((prev) => [
+          ...prev,
+          {
+            kind: "agent_done",
+            agent: event.agent as string,
+            label: event.label as string,
+            usage: event.usage as { input_tokens: number; output_tokens: number } | undefined,
+          },
+        ]);
+        break;
       case "tool_use":
         setTraces((prev) => [
           ...prev,
@@ -117,6 +146,7 @@ export default function Home() {
             id: event.id as string,
             name: event.name as string,
             input: event.input,
+            agent: event.agent as string | undefined,
           },
         ]);
         break;
@@ -129,6 +159,7 @@ export default function Home() {
             name: event.name as string,
             summary: event.summary as string,
             result: event.result,
+            agent: event.agent as string | undefined,
           },
         ]);
         break;
@@ -245,24 +276,51 @@ export default function Home() {
                       key={i}
                       className="pt-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500"
                     >
-                      — 루프 {t.n}회차 —
+                      — 오케스트레이터 루프 {t.n}회차 —
                     </div>
                   );
                 case "thinking":
                   return (
                     <div key={i} className="rounded-lg bg-zinc-800 p-2.5 text-xs text-zinc-400">
-                      <span className="mb-1 block font-semibold text-zinc-500">💭 판단 과정</span>
+                      <span className="mb-1 block font-semibold text-zinc-500">
+                        💭 오케스트레이터 판단
+                      </span>
                       {t.text}
+                    </div>
+                  );
+                case "agent_start":
+                  return (
+                    <div
+                      key={i}
+                      className={`rounded-lg border p-2.5 text-xs ${AGENT_META[t.agent]?.color ?? "border-zinc-700 bg-zinc-800"}`}
+                    >
+                      <span className="font-bold">
+                        {AGENT_META[t.agent]?.icon} {t.label} 시작
+                      </span>
+                      <p className="mt-1 text-[11px] opacity-80">위임 과제: {t.task}</p>
+                    </div>
+                  );
+                case "agent_done":
+                  return (
+                    <div
+                      key={i}
+                      className={`rounded-lg border p-2 text-[11px] ${AGENT_META[t.agent]?.color ?? "border-zinc-700 bg-zinc-800"}`}
+                    >
+                      <span className="font-semibold">
+                        {AGENT_META[t.agent]?.icon} {t.label} 완료
+                        {t.usage &&
+                          ` · 토큰 ${t.usage.input_tokens}/${t.usage.output_tokens}`}
+                      </span>
                     </div>
                   );
                 case "tool_use":
                   return (
                     <div
                       key={i}
-                      className="rounded-lg border border-blue-800 bg-blue-950 p-2.5 text-xs"
+                      className={`ml-4 rounded-lg border p-2.5 text-xs ${t.agent ? (AGENT_META[t.agent]?.color ?? "") : "border-blue-800 bg-blue-950"}`}
                     >
                       <span className="font-semibold">{TOOL_LABELS[t.name] ?? t.name}</span>
-                      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-[11px] text-blue-300">
+                      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-[11px] opacity-70">
                         {JSON.stringify(t.input, null, 2)}
                       </pre>
                     </div>
@@ -271,7 +329,7 @@ export default function Home() {
                   return (
                     <div
                       key={i}
-                      className="rounded-lg border border-emerald-800 bg-emerald-950 p-2.5 text-xs"
+                      className="ml-4 rounded-lg border border-emerald-800 bg-emerald-950 p-2.5 text-xs"
                     >
                       <span className="font-semibold text-emerald-300">✔ {t.summary}</span>
                       {t.name === "search_law" && Array.isArray(t.result) && (

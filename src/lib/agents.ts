@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { TOOLS, executeTool } from "./tools";
 import { verifyLawReport, RetrievedArticle } from "./verify";
+import { SECURITY_RULES, wrapToolData } from "./security";
 
 const client = new Anthropic();
 const MODEL = "claude-opus-4-8";
@@ -33,7 +34,8 @@ export const SUB_AGENTS: Record<string, SubAgentSpec> = {
 - 후보 상품: 상품명, 가격, 판매처, 링크
 - 2개 이상이면 비교표 (가격/핵심 특징/후기 요약)
 - 후기에서 확인된 장단점과 주의사항
-- 근거가 부족한 부분은 "확인 불가"로 명시`,
+- 근거가 부족한 부분은 "확인 불가"로 명시
+${SECURITY_RULES}`,
   },
   law: {
     key: "law",
@@ -51,7 +53,8 @@ export const SUB_AGENTS: Record<string, SubAgentSpec> = {
 - 결론 (가능/불가능/조건부)
 - 근거: 법령명 + 조문번호 + 해당 내용 (예: 전자상거래법 제17조 제1항)
 - 예외·제한 사항과 그 근거 조문
-- 마지막 줄: "본 내용은 일반 정보 안내이며 법률 자문이 아닙니다."`,
+- 마지막 줄: "본 내용은 일반 정보 안내이며 법률 자문이 아닙니다."
+${SECURITY_RULES}`,
   },
 };
 
@@ -98,7 +101,8 @@ export const ORCHESTRATOR_SYSTEM = `당신은 "쇼핑 컨시어지"의 오케스
 - 전문가 보고의 사실(상품 정보, 조문 번호)을 왜곡하거나 추가하지 않습니다.
 - 법률 보고의 조문 인용(법령명+조문번호)은 최종 답변에 유지합니다.
 - 두 보고를 합칠 때는 사용자 질문의 흐름에 맞게 재구성하되, 간결하고 읽기 쉬운 한국어로 씁니다.
-- 법령 안내가 포함되면 "일반 정보 안내이며 법률 자문이 아닙니다"를 답변 끝에 짧게 남깁니다.`;
+- 법령 안내가 포함되면 "일반 정보 안내이며 법률 자문이 아닙니다"를 답변 끝에 짧게 남깁니다.
+${SECURITY_RULES}`;
 
 export interface SubAgentResult {
   report: string;
@@ -183,7 +187,7 @@ export async function runSubAgent(
         toolResults.push({
           type: "tool_result",
           tool_use_id: tu.id,
-          content: JSON.stringify(exec.result),
+          content: wrapToolData(JSON.stringify(exec.result)),
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);

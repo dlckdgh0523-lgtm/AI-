@@ -113,6 +113,14 @@ export default function AdminPage() {
   }
   const verifyRate = verifyTotal ? Math.round((verifyPass / verifyTotal) * 100) : null;
 
+  // 미충족 수요: 에이전트가 완전히 답하지 못한 대화 (답변에 불확실/미검색 신호)
+  const UNMET_SIGNAL = /(찾지 못했|찾지못했|확인 불가|확인이 필요|검색되지 않|해당 상품이 없|조건의 상품)/;
+  const unmet = rows.filter(
+    (r) =>
+      UNMET_SIGNAL.test(r.answer ?? "") ||
+      (r.traces ?? []).some((t) => t.type === "verify_result" && t.passed === false)
+  );
+
   return (
     <div className="min-h-screen bg-zinc-50 px-8 py-6 text-zinc-900">
       <div className="mx-auto max-w-5xl">
@@ -245,6 +253,32 @@ export default function AdminPage() {
             hint="카드·주민·전화·이메일 저장 전 마스킹"
           />
         </div>
+
+        {/* 미충족 수요 — 에이전트가 완전히 답하지 못한 대화 = 개선/사업 기회 */}
+        <section className="mb-6 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+          <h2 className="text-sm font-bold text-amber-800">
+            미충족 수요 · 개선 필요 대화
+          </h2>
+          <p className="mb-3 text-[11px] text-amber-700/70">
+            에이전트가 상품을 못 찾았거나 법령 근거를 확정하지 못한 대화 — 데이터·법령 커버리지를 넓힐 기회
+            {rows.length > 0 && ` (전체 ${rows.length}건 중 ${unmet.length}건)`}
+          </p>
+          {rows.length === 0 ? (
+            <p className="text-sm text-amber-700/60">대화 로그가 쌓이면 표시됩니다.</p>
+          ) : unmet.length === 0 ? (
+            <p className="text-sm text-emerald-700">
+              ✓ 최근 대화에서 미충족 사례가 없습니다.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {unmet.slice(0, 6).map((r) => (
+                <li key={r.id} className="truncate text-sm text-amber-900">
+                  • {r.question}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {/* 대화 목록 */}
         <section className="rounded-xl border border-zinc-200 bg-white">

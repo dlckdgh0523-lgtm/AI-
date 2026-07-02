@@ -11,7 +11,9 @@
     "eval": "tsx scripts/evaluate.ts",
     "redteam": "tsx scripts/redteam.ts",
     "bench": "tsx scripts/bench-cost.ts",
-    "setup-cache": "tsx scripts/setup-cache.ts"
+    "setup-cache": "tsx scripts/setup-cache.ts",
+    "robust": "tsx scripts/robustness.ts",
+    "test-pii": "tsx scripts/test-pii.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",

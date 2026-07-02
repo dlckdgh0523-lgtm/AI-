@@ -1,0 +1,19 @@
+
+> commerce-agent@0.1.0 dev
+> next dev
+
+⚠ Port 3000 is in use by process 32048, using available port 3001 instead.
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.200.104:3001
+- Environments: .env.local
+✓ Ready in 1520ms
+⨯ Another next dev server is already running.
+
+- Local:        http://localhost:3000
+- PID:          32048
+- Dir:   POST /api/chat 200 in 22.4s (next.js: 274ms, application-code: 22.1s)
+    .next\dev\logs\next-development.log
+
+Run taskkill /PID 32048 /F to stop it.
+[?25h

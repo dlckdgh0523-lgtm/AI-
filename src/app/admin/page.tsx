@@ -129,16 +129,24 @@ export default function AdminPage() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-50 px-8 py-6 text-zinc-900">
+    <div className="min-h-screen bg-[#f7f8fa] px-6 py-6 text-[#191919] sm:px-8">
       <div className="mx-auto max-w-5xl">
-        <header className="mb-6 flex items-baseline justify-between">
-          <div>
-            <h1 className="text-xl font-bold">커머스 인텔리전스 대시보드</h1>
-            <p className="text-sm text-zinc-500">
-              핵심 법령 조문 · 고객 니즈 분석 · 신뢰성 지표 · 대화 로그 · 비용 관측
-            </p>
+        <header className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#03c75a] font-black text-white">
+              쇼
+            </div>
+            <div>
+              <h1 className="text-lg font-bold">커머스 인텔리전스 대시보드</h1>
+              <p className="text-[12px] text-[#767676]">
+                핵심 법령 조문 · 고객 니즈 분석 · 신뢰성 지표 · 대화 로그 · 비용 관측
+              </p>
+            </div>
           </div>
-          <a href="/" className="text-sm text-blue-600 hover:underline">
+          <a
+            href="/"
+            className="rounded-lg border border-[#dfe2e7] bg-white px-3 py-1.5 text-[13px] font-medium text-[#4b4b4b] hover:bg-[#f1f3f5]"
+          >
             ← 채팅으로
           </a>
         </header>
@@ -159,7 +167,7 @@ export default function AdminPage() {
         </div>
 
         {/* 도구 사용 분포 */}
-        <section className="mb-6 rounded-xl border border-zinc-200 bg-white p-4">
+        <section className="mb-6 rounded-xl border border-[#eaecef] bg-white p-4">
           <h2 className="text-sm font-bold text-zinc-600">에이전트 도구 호출 분포</h2>
           <p className="mb-3 text-[11px] text-zinc-400">
             전문 에이전트가 호출한 도구(함수)별 빈도 — 에이전트가 어떤 행동을 많이 하는지
@@ -175,7 +183,7 @@ export default function AdminPage() {
                   <span className="w-52 shrink-0 text-xs">{TOOL_LABELS[name] ?? name}</span>
                   <div className="h-4 flex-1 overflow-hidden rounded bg-zinc-100">
                     <div
-                      className="h-full bg-blue-500"
+                      className="h-full bg-[#03c75a]"
                       style={{ width: `${(count / toolTotal) * 100}%` }}
                     />
                   </div>
@@ -188,7 +196,7 @@ export default function AdminPage() {
         {/* 2단 인사이트: 핵심 법령 조문 + 니즈 분석 */}
         <div className="mb-6 grid gap-4 md:grid-cols-2">
           {/* 핵심 법령 조문 랭킹 (그래프 중심성) */}
-          <section className="rounded-xl border border-zinc-200 bg-white p-4">
+          <section className="rounded-xl border border-[#eaecef] bg-white p-4">
             <h2 className="text-sm font-bold text-zinc-600">
               소비자 이슈 핵심 법령 조문
             </h2>
@@ -219,7 +227,7 @@ export default function AdminPage() {
           </section>
 
           {/* 니즈 분석 */}
-          <section className="rounded-xl border border-zinc-200 bg-white p-4">
+          <section className="rounded-xl border border-[#eaecef] bg-white p-4">
             <h2 className="text-sm font-bold text-zinc-600">고객 니즈 분석</h2>
             <p className="mb-3 text-[11px] text-zinc-400">
               실제 대화 질문을 카테고리로 분류 — 어떤 니즈가 많은지 (대화 {rows.length}건 기준)
@@ -291,7 +299,7 @@ export default function AdminPage() {
         </section>
 
         {/* 대화 목록 */}
-        <section className="rounded-xl border border-zinc-200 bg-white">
+        <section className="rounded-xl border border-[#eaecef] bg-white">
           <h2 className="border-b border-zinc-100 p-4 text-sm font-bold text-zinc-600">
             최근 대화 {loading && "(불러오는 중…)"}
           </h2>
@@ -346,7 +354,7 @@ export default function AdminPage() {
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4">
+    <div className="rounded-xl border border-[#eaecef] bg-white p-4">
       <p className="text-xs text-zinc-500">{label}</p>
       <p className="mt-1 text-lg font-bold">{value}</p>
       {hint && <p className="text-[11px] text-zinc-400">{hint}</p>}

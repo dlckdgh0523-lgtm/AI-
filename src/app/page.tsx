@@ -14,6 +14,14 @@ type TraceEvent =
   | { kind: "thinking"; text: string }
   | { kind: "agent_start"; agent: string; label: string; task: string }
   | { kind: "agent_done"; agent: string; label: string; usage?: { input_tokens: number; output_tokens: number } }
+  | { kind: "verify_start"; agent: string }
+  | {
+      kind: "verify_result";
+      agent: string;
+      passed: boolean;
+      revised?: boolean;
+      verdicts: { citation: string; supported: boolean; reason: string }[];
+    }
   | { kind: "tool_use"; id: string; name: string; input: unknown; agent?: string }
   | { kind: "tool_result"; id: string; name: string; summary: string; result: unknown; agent?: string };
 
@@ -135,6 +143,26 @@ export default function Home() {
             agent: event.agent as string,
             label: event.label as string,
             usage: event.usage as { input_tokens: number; output_tokens: number } | undefined,
+          },
+        ]);
+        break;
+      case "verify_start":
+        setTraces((prev) => [
+          ...prev,
+          { kind: "verify_start", agent: event.agent as string },
+        ]);
+        break;
+      case "verify_result":
+        setTraces((prev) => [
+          ...prev,
+          {
+            kind: "verify_result",
+            agent: event.agent as string,
+            passed: event.passed as boolean,
+            revised: event.revised as boolean | undefined,
+            verdicts:
+              (event.verdicts as { citation: string; supported: boolean; reason: string }[]) ??
+              [],
           },
         ]);
         break;
@@ -311,6 +339,39 @@ export default function Home() {
                         {t.usage &&
                           ` · 토큰 ${t.usage.input_tokens}/${t.usage.output_tokens}`}
                       </span>
+                    </div>
+                  );
+                case "verify_start":
+                  return (
+                    <div
+                      key={i}
+                      className="ml-4 rounded-lg border border-amber-700 bg-amber-950 p-2 text-[11px] text-amber-200"
+                    >
+                      🛡️ 인용 검증 중… (조문 실존 대조 + 크리틱 반박 시도)
+                    </div>
+                  );
+                case "verify_result":
+                  return (
+                    <div
+                      key={i}
+                      className={`ml-4 rounded-lg border p-2.5 text-xs ${t.passed ? "border-emerald-700 bg-emerald-950 text-emerald-200" : "border-amber-700 bg-amber-950 text-amber-200"}`}
+                    >
+                      <span className="font-bold">
+                        {t.passed
+                          ? `🛡️ 인용 검증 통과 (${t.verdicts.length}건 확인)`
+                          : `🛡️ 검증 실패 인용 발견 → 보고서 수정됨`}
+                      </span>
+                      {t.verdicts.some((v) => !v.supported) && (
+                        <ul className="mt-1 space-y-0.5 text-[11px] opacity-80">
+                          {t.verdicts
+                            .filter((v) => !v.supported)
+                            .map((v, j) => (
+                              <li key={j}>
+                                ✘ {v.citation}: {v.reason}
+                              </li>
+                            ))}
+                        </ul>
+                      )}
                     </div>
                   );
                 case "tool_use":

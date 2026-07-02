@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { TOOLS, executeTool } from "./tools";
+import { verifyLawReport, RetrievedArticle } from "./verify";
 
 const client = new Anthropic();
 const MODEL = "claude-opus-4-8";
@@ -103,6 +104,8 @@ export interface SubAgentResult {
   report: string;
   usage: { input_tokens: number; output_tokens: number };
   iterations: number;
+  /** 이번 조사에서 search_law가 실제 반환한 조문 (인용 검증용) */
+  retrievedLaw: RetrievedArticle[];
 }
 
 /**
@@ -121,6 +124,7 @@ export async function runSubAgent(
 
   let inputTokens = 0;
   let outputTokens = 0;
+  const retrievedLaw: RetrievedArticle[] = [];
 
   for (let i = 0; i < SUB_AGENT_MAX_ITERATIONS; i++) {
     const response = await client.messages.create({
@@ -146,6 +150,7 @@ export async function runSubAgent(
         report,
         usage: { input_tokens: inputTokens, output_tokens: outputTokens },
         iterations: i + 1,
+        retrievedLaw,
       };
     }
 
@@ -160,6 +165,13 @@ export async function runSubAgent(
       emit({ type: "tool_use", agent: agentKey, id: tu.id, name: tu.name, input: tu.input });
       try {
         const exec = await executeTool(tu.name, tu.input as Record<string, unknown>);
+        if (tu.name === "search_law" && Array.isArray(exec.result)) {
+          for (const a of exec.result as { law: string; article: string; content: string }[]) {
+            if (!retrievedLaw.some((r) => r.law === a.law && r.article === a.article)) {
+              retrievedLaw.push({ law: a.law, article: a.article, content: a.content });
+            }
+          }
+        }
         emit({
           type: "tool_result",
           agent: agentKey,
@@ -191,6 +203,7 @@ export async function runSubAgent(
     report: "(반복 한도 초과로 조사를 완료하지 못했습니다)",
     usage: { input_tokens: inputTokens, output_tokens: outputTokens },
     iterations: SUB_AGENT_MAX_ITERATIONS,
+    retrievedLaw,
   };
 }
 
@@ -206,6 +219,35 @@ export async function executeDelegation(
 
   emit({ type: "agent_start", agent: agentKey, label: spec.label, task });
   const result = await runSubAgent(agentKey, task, emit);
+
+  let report = result.report;
+
+  // 법률 보고서는 적대적 인용 검증을 거친다 (검증 실패해도 원본으로 폴백 — 단일 장애점 아님)
+  if (agentKey === "law" && result.retrievedLaw.length > 0) {
+    emit({ type: "verify_start", agent: agentKey });
+    try {
+      const verification = await verifyLawReport(report, result.retrievedLaw);
+      if (!verification.passed && verification.revisedReport) {
+        report = verification.revisedReport;
+      }
+      emit({
+        type: "verify_result",
+        agent: agentKey,
+        passed: verification.passed,
+        verdicts: verification.verdicts,
+        revised: !verification.passed,
+      });
+    } catch (e) {
+      emit({
+        type: "verify_result",
+        agent: agentKey,
+        passed: true,
+        verdicts: [],
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
   emit({
     type: "agent_done",
     agent: agentKey,
@@ -213,5 +255,5 @@ export async function executeDelegation(
     iterations: result.iterations,
     usage: result.usage,
   });
-  return { report: result.report, usage: result.usage };
+  return { report, usage: result.usage };
 }

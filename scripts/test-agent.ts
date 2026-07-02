@@ -26,13 +26,33 @@ async function main() {
       const ev = JSON.parse(part.slice(6));
       switch (ev.type) {
         case "iteration":
-          console.log(`\n[루프 ${ev.n}회차]`);
+          console.log(`\n[오케스트레이터 루프 ${ev.n}회차]`);
+          break;
+        case "agent_start":
+          console.log(`\n  ▶ ${ev.label} 시작 — 과제: ${String(ev.task).slice(0, 80)}…`);
+          break;
+        case "agent_done":
+          console.log(
+            `  ■ ${ev.label} 완료${ev.usage ? ` (토큰 ${ev.usage.input_tokens}/${ev.usage.output_tokens})` : ""}`
+          );
+          break;
+        case "verify_start":
+          console.log(`  🛡️ 인용 검증 시작`);
+          break;
+        case "verify_result":
+          console.log(
+            `  🛡️ 검증 결과: ${ev.passed ? "통과" : "실패→수정"} (판정 ${ev.verdicts?.length ?? 0}건)` +
+              (ev.verdicts ?? [])
+                .filter((v: { supported: boolean }) => !v.supported)
+                .map((v: { citation: string; reason: string }) => `\n     ✘ ${v.citation}: ${v.reason}`)
+                .join("")
+          );
           break;
         case "tool_use":
-          console.log(`  → 도구 호출: ${ev.name}(${JSON.stringify(ev.input)})`);
+          console.log(`    → [${ev.agent ?? "orch"}] ${ev.name}(${JSON.stringify(ev.input).slice(0, 120)})`);
           break;
         case "tool_result":
-          console.log(`  ← ${ev.summary}`);
+          console.log(`    ← [${ev.agent ?? "orch"}] ${ev.summary}`);
           break;
         case "text_delta":
           text += ev.text;

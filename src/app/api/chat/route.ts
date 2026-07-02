@@ -47,7 +47,11 @@ export async function POST(req: Request) {
       let answerText = "";
       const traceLog: unknown[] = [];
       const emit = (event: Record<string, unknown>) => {
-        if (event.type === "agent_start" || event.type === "agent_done") {
+        if (
+          event.type === "agent_start" ||
+          event.type === "agent_done" ||
+          event.type === "verify_result"
+        ) {
           traceLog.push(event);
         } else if (event.type === "tool_use") {
           traceLog.push({ kind: "tool_use", agent: event.agent, name: event.name, input: event.input });

@@ -34,6 +34,13 @@ interface TopArticle {
 const PRICE_IN = 5;
 const PRICE_OUT = 25;
 
+// 도구 이름 → 사람이 읽는 라벨 (평가자 혼동 방지)
+const TOOL_LABELS: Record<string, string> = {
+  search_products: "🛒 상품 검색 (네이버 쇼핑)",
+  search_reviews: "📝 후기 검색 (네이버 블로그)",
+  search_law: "⚖️ 법령 검색 (GraphRAG)",
+};
+
 // 니즈 분석용 키워드 카테고리
 const NEED_CATEGORIES: { label: string; kws: RegExp }[] = [
   { label: "환불·청약철회", kws: /환불|청약철회|반품/ },
@@ -153,7 +160,10 @@ export default function AdminPage() {
 
         {/* 도구 사용 분포 */}
         <section className="mb-6 rounded-xl border border-zinc-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-bold text-zinc-600">도구 호출 분포</h2>
+          <h2 className="text-sm font-bold text-zinc-600">에이전트 도구 호출 분포</h2>
+          <p className="mb-3 text-[11px] text-zinc-400">
+            전문 에이전트가 호출한 도구(함수)별 빈도 — 에이전트가 어떤 행동을 많이 하는지
+          </p>
           {Object.keys(toolCounts).length === 0 && (
             <p className="text-sm text-zinc-400">아직 도구 호출 기록이 없습니다.</p>
           )}
@@ -162,7 +172,7 @@ export default function AdminPage() {
               .sort((a, b) => b[1] - a[1])
               .map(([name, count]) => (
                 <div key={name} className="flex items-center gap-3 text-sm">
-                  <span className="w-40 shrink-0 font-mono text-xs">{name}</span>
+                  <span className="w-52 shrink-0 text-xs">{TOOL_LABELS[name] ?? name}</span>
                   <div className="h-4 flex-1 overflow-hidden rounded bg-zinc-100">
                     <div
                       className="h-full bg-blue-500"

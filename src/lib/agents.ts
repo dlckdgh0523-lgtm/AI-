@@ -4,7 +4,9 @@ import { verifyLawReport, RetrievedArticle } from "./verify";
 import { SECURITY_RULES, wrapToolData } from "./security";
 
 const client = new Anthropic();
-const MODEL = "claude-opus-4-8";
+// 오케스트레이터(판단·합성, route.ts)는 고성능 Opus, 서브 에이전트(조사)는 저비용 Haiku로 분리.
+// 조사 작업은 도구 호출·요약 위주라 Haiku로 충분하며, 이것이 토큰 비용의 주요 절감 레버다.
+const SUB_AGENT_MODEL = "claude-haiku-4-5";
 const SUB_AGENT_MAX_ITERATIONS = 3;
 
 /** 트레이스 이벤트 방출 콜백 (SSE로 전달됨) */
@@ -48,6 +50,7 @@ ${SECURITY_RULES}`,
 - 원칙 조문만 보고 결론 내리지 않습니다. 예외 조항, 예외의 예외(단서)까지 확인합니다.
 - 조문에 없는 내용을 절대 지어내지 않습니다.
 - **search_law는 1~2회 호출로 충분합니다** — 한 번의 검색이 참조 확장으로 관련 조문을 묶어서 반환하므로, 쟁점을 포괄하는 질문 하나로 검색하세요.
+- **search_law의 question은 키워드 나열이 아니라 간결한 자연어 질문 한 문장으로 작성하세요** (예: "온라인 구매 상품 단순변심 청약철회 기간과 반품 배송비 부담은?"). 표현을 안정적으로 유지하면 동일 쟁점 질문의 의미 캐시 재사용률이 높아집니다.
 
 ## 보고서 형식 (마크다운)
 - 결론 (가능/불가능/조건부)
@@ -131,11 +134,10 @@ export async function runSubAgent(
   const retrievedLaw: RetrievedArticle[] = [];
 
   for (let i = 0; i < SUB_AGENT_MAX_ITERATIONS; i++) {
+    // Haiku 4.5는 effort/adaptive thinking을 지원하지 않으므로 plain tool use로 실행
     const response = await client.messages.create({
-      model: MODEL,
+      model: SUB_AGENT_MODEL,
       max_tokens: 4096,
-      thinking: { type: "adaptive" },
-      output_config: { effort: "medium" }, // 서브 에이전트는 조사 범위를 좁게 유지 (비용 제어)
       system: [
         { type: "text", text: spec.system, cache_control: { type: "ephemeral" } },
       ],

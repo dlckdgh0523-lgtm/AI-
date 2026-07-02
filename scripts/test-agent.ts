@@ -1,3 +1,5 @@
+export {}; // 모듈 스코프로 격리 (전역 main 충돌 방지)
+
 /** 에이전트 E2E 테스트 — 스트리밍 이벤트를 콘솔에 요약 출력 */
 async function main() {
   const question = process.argv[2] ?? "장마철 원룸에서 쓸 제습기 10만원 이하로 추천해줘";

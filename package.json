@@ -9,7 +9,9 @@
     "lint": "eslint",
     "ingest": "tsx scripts/ingest-laws.ts",
     "eval": "tsx scripts/evaluate.ts",
-    "redteam": "tsx scripts/redteam.ts"
+    "redteam": "tsx scripts/redteam.ts",
+    "bench": "tsx scripts/bench-cost.ts",
+    "setup-cache": "tsx scripts/setup-cache.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",

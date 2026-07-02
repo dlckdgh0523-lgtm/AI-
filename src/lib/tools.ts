@@ -1,6 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { searchShopping, searchBlog } from "./naver";
 import { searchLawGraph } from "./graphrag";
+import { cacheLookup, cacheStore } from "./semantic-cache";
+
+interface LawToolResult {
+  law: string;
+  article: string;
+  title: string;
+  content: string;
+  via: string;
+  expandedFrom?: string;
+}
 
 /** 에이전트가 사용하는 도구 정의 (Claude tool use) */
 export const TOOLS: Anthropic.Tool[] = [
@@ -105,22 +115,35 @@ export async function executeTool(
       };
     }
     case "search_law": {
-      const articles = await searchLawGraph(String(input.question), {
-        topK: 4,
-        expandHops: 1,
-      });
+      const question = String(input.question);
+
+      // 의미 캐시 조회: 유사한 이전 질문이 있으면 그래프 검색을 건너뜀
+      const cached = await cacheLookup<LawToolResult[]>(question);
+      if (cached.hit && cached.result) {
+        return {
+          summary: `법령 검색 (의미 캐시 히트, 유사도 ${cached.similarity?.toFixed(3)}) → 조문 ${cached.result.length}개`,
+          result: cached.result,
+        };
+      }
+
+      const articles = await searchLawGraph(question, { topK: 4, expandHops: 1 });
       const vectorHits = articles.filter((a) => a.via === "vector").length;
       const expanded = articles.length - vectorHits;
+      const result: LawToolResult[] = articles.map((a) => ({
+        law: a.lawName,
+        article: a.articleNo,
+        title: a.title,
+        content: a.content,
+        via: a.via,
+        expandedFrom: a.expandedFrom,
+      }));
+
+      // 캐시 저장 (조회 때 계산한 임베딩 재사용 — 임베딩 추가 호출 없음)
+      await cacheStore(question, cached.queryVec, result);
+
       return {
         summary: `법령 그래프 검색 → 조문 ${vectorHits}개 + 참조 확장 ${expanded}개`,
-        result: articles.map((a) => ({
-          law: a.lawName,
-          article: a.articleNo,
-          title: a.title,
-          content: a.content,
-          via: a.via,
-          expandedFrom: a.expandedFrom,
-        })),
+        result,
       };
     }
     default:

@@ -13,7 +13,8 @@
     "bench": "tsx scripts/bench-cost.ts",
     "setup-cache": "tsx scripts/setup-cache.ts",
     "robust": "tsx scripts/robustness.ts",
-    "test-pii": "tsx scripts/test-pii.ts"
+    "test-pii": "tsx scripts/test-pii.ts",
+    "ab": "tsx scripts/ab-architecture.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",

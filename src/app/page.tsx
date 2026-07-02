@@ -9,6 +9,15 @@ interface ChatMessage {
   content: string;
 }
 
+interface Product {
+  title: string;
+  price: number;
+  mall: string;
+  brand?: string;
+  image?: string;
+  link: string;
+}
+
 type TraceEvent =
   | { kind: "iteration"; n: number }
   | { kind: "thinking"; text: string }
@@ -36,17 +45,30 @@ const AGENT_META: Record<string, { icon: string; color: string }> = {
   law: { icon: "⚖️", color: "border-purple-700 bg-purple-950" },
 };
 
-const EXAMPLES = [
-  "장마철 원룸에서 쓸 제습기 10만원 이하로 추천해줘",
-  "온라인에서 산 노트북 개봉했는데 환불 가능해?",
-  "'전국 최저가 보장'이라고 광고 문구 써도 돼?",
-  "캠핑용 버너 2개만 비교해서 추천해줘",
+const EXAMPLE_GROUPS: { icon: string; label: string; items: string[] }[] = [
+  {
+    icon: "🛒",
+    label: "상품 추천·비교",
+    items: [
+      "장마철 원룸에서 쓸 제습기 10만원 이하로 추천해줘",
+      "캠핑용 버너 2개만 비교해서 추천해줘",
+    ],
+  },
+  {
+    icon: "⚖️",
+    label: "소비자 권리·법령",
+    items: [
+      "온라인에서 산 노트북 개봉했는데 환불 가능해?",
+      "'전국 최저가 보장'이라고 광고 문구 써도 돼?",
+    ],
+  },
 ];
 
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [traces, setTraces] = useState<TraceEvent[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [showTrace, setShowTrace] = useState(true);
@@ -58,6 +80,7 @@ export default function Home() {
     setMessages([...history, { role: "assistant", content: "" }]);
     setTraces([]);
     setSuggestions([]);
+    setProducts([]);
     setInput("");
     setStreaming(true);
 
@@ -192,6 +215,16 @@ export default function Home() {
             agent: event.agent as string | undefined,
           },
         ]);
+        // 상품 검색 결과는 이미지 카드로 렌더링 (중복 제거)
+        if (event.name === "search_products" && Array.isArray(event.result)) {
+          setProducts((prev) => {
+            const seen = new Set(prev.map((p) => p.link));
+            const added = (event.result as Product[]).filter(
+              (p) => p.link && !seen.has(p.link)
+            );
+            return [...prev, ...added];
+          });
+        }
         break;
       case "suggestions":
         setSuggestions((event.items as string[]) ?? []);
@@ -205,33 +238,60 @@ export default function Home() {
       {/* 채팅 영역 */}
       <div className="flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-3">
-          <div>
-            <h1 className="text-lg font-bold">쇼핑 컨시어지</h1>
-            <p className="text-xs text-zinc-500">
-              상품 추천 · 비교 · 소비자권리(법령 GraphRAG) AI 에이전트
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-lg">
+              🛍️
+            </div>
+            <div>
+              <h1 className="text-lg font-bold leading-tight">쇼핑 컨시어지</h1>
+              <p className="text-xs text-zinc-500">
+                상품 추천·비교 + 소비자권리(법령 GraphRAG) 멀티 에이전트
+              </p>
+            </div>
           </div>
-          <button
-            onClick={() => setShowTrace(!showTrace)}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-100"
-          >
-            {showTrace ? "트레이스 숨기기" : "🔍 에이전트 트레이스"}
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/admin"
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100"
+            >
+              📊 대시보드
+            </a>
+            <button
+              onClick={() => setShowTrace(!showTrace)}
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-100"
+            >
+              {showTrace ? "트레이스 숨기기" : "🔍 에이전트 트레이스"}
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto px-6 py-4">
           {messages.length === 0 && (
-            <div className="mx-auto mt-16 max-w-lg text-center">
-              <p className="mb-6 text-zinc-500">무엇을 도와드릴까요? 예시를 눌러보세요.</p>
-              <div className="grid gap-2">
-                {EXAMPLES.map((ex) => (
-                  <button
-                    key={ex}
-                    onClick={() => send(ex)}
-                    className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm hover:border-blue-400 hover:bg-blue-50"
-                  >
-                    {ex}
-                  </button>
+            <div className="mx-auto mt-12 max-w-2xl">
+              <div className="mb-8 text-center">
+                <h2 className="text-xl font-bold text-zinc-800">무엇을 도와드릴까요?</h2>
+                <p className="mt-1 text-sm text-zinc-500">
+                  자연어로 물어보면 에이전트가 상품을 찾거나 법령 근거로 답합니다. 예시를 눌러보세요.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {EXAMPLE_GROUPS.map((g) => (
+                  <div key={g.label} className="rounded-2xl border border-zinc-200 bg-white p-4">
+                    <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-zinc-700">
+                      <span>{g.icon}</span> {g.label}
+                    </p>
+                    <div className="grid gap-2">
+                      {g.items.map((ex) => (
+                        <button
+                          key={ex}
+                          onClick={() => send(ex)}
+                          className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2.5 text-left text-sm text-zinc-700 hover:border-blue-300 hover:bg-blue-50"
+                        >
+                          {ex}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -258,6 +318,43 @@ export default function Home() {
                 </div>
               </div>
             ))}
+            {/* 상품 이미지 카드 (네이버 쇼핑 API) */}
+            {products.length > 0 && (
+              <div className="pt-1">
+                <p className="mb-2 text-xs font-medium text-zinc-500">
+                  🛒 검색된 상품 {products.length}개
+                </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {products.slice(0, 9).map((p) => (
+                    <a
+                      key={p.link}
+                      href={p.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group overflow-hidden rounded-xl border border-zinc-200 bg-white transition hover:border-blue-400 hover:shadow-md"
+                    >
+                      <div className="aspect-square overflow-hidden bg-zinc-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={p.image}
+                          alt={p.title}
+                          loading="lazy"
+                          className="h-full w-full object-cover transition group-hover:scale-105"
+                        />
+                      </div>
+                      <div className="p-2.5">
+                        <p className="line-clamp-2 text-xs text-zinc-700">{p.title}</p>
+                        <p className="mt-1 text-sm font-bold text-zinc-900">
+                          {p.price.toLocaleString()}원
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] text-zinc-400">{p.mall}</p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* 후속 유도질문 칩 (작은 박스) */}
             {suggestions.length > 0 && !streaming && (
               <div className="flex flex-wrap gap-2 pt-1">

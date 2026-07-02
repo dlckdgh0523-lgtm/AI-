@@ -73,7 +73,7 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const [showTrace, setShowTrace] = useState(false);
+  const [showTrace, setShowTrace] = useState(true); // 판단 과정을 기본으로 옆에 표시
   const bottomRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -90,7 +90,6 @@ export default function Home() {
     setProducts([]);
     setInput("");
     setStreaming(true);
-    if (traces.length === 0) setShowTrace(true);
 
     try {
       const res = await fetch("/api/chat", {
@@ -447,7 +446,7 @@ export default function Home() {
 
       {/* 판단 과정 패널 */}
       {showTrace && (
-        <aside className="hidden w-[340px] shrink-0 flex-col border-l border-[#eaecef] bg-white lg:flex">
+        <aside className="hidden w-[320px] shrink-0 flex-col border-l border-[#eaecef] bg-white lg:flex">
           <div className="flex items-center justify-between border-b border-[#eaecef] px-4 py-3">
             <div>
               <h2 className="text-[13px] font-bold">에이전트 판단 과정</h2>

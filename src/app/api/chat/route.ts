@@ -107,7 +107,7 @@ export async function POST(req: Request) {
 
           const msgStream = client.messages.stream({
             model: MODEL,
-            max_tokens: 8192,
+            max_tokens: 16000, // 비교표 등 긴 최종 답변이 잘리지 않도록 상향
             thinking: { type: "adaptive", display: "summarized" },
             system: [
               {

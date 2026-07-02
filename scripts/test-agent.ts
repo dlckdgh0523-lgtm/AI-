@@ -68,7 +68,7 @@ async function main() {
       }
     }
   }
-  console.log(`\n--- 최종 응답 (앞 800자) ---\n${text.slice(0, 800)}`);
+  console.log(`\n--- 최종 응답 (전문, ${text.length}자) ---\n${text}`);
 }
 
 main().catch((e) => {

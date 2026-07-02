@@ -1,6 +1,33 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
 import { searchShopping, searchBlog } from "./naver";
 import { searchLawGraph } from "./graphrag";
+
+/**
+ * 도구 입력 zod 스키마 — LLM이 생성한 도구 인자를 실행 전 런타임 검증.
+ * 잘못된 입력(빈 질의, 음수 예산, 잘못된 enum 등)이 외부 API·DB로 넘어가 터지는 것을 막는다.
+ */
+const ProductInput = z.object({
+  query: z.string().min(1, "검색어가 비어 있습니다"),
+  max_price: z.number().positive().optional(),
+  sort: z.enum(["sim", "asc", "dsc"]).optional(),
+});
+const ReviewInput = z.object({
+  query: z.string().min(1, "검색어가 비어 있습니다"),
+});
+const LawInput = z.object({
+  question: z.string().min(1, "질문이 비어 있습니다"),
+});
+
+/** zod 검증 실패 시 사람이 읽을 수 있는 메시지로 변환 */
+function validate<T>(schema: z.ZodType<T>, input: unknown): T {
+  const r = schema.safeParse(input);
+  if (!r.success) {
+    const msg = r.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ");
+    throw new Error(`도구 입력 검증 실패 — ${msg}`);
+  }
+  return r.data;
+}
 
 /** 에이전트가 사용하는 도구 정의 (Claude tool use) */
 export const TOOLS: Anthropic.Tool[] = [
@@ -69,11 +96,12 @@ export async function executeTool(
 ): Promise<ToolExecution> {
   switch (name) {
     case "search_products": {
-      const items = await searchShopping(String(input.query), {
+      const args = validate(ProductInput, input);
+      const items = await searchShopping(args.query, {
         display: 10,
-        sort: (input.sort as "sim" | "asc" | "dsc") ?? "sim",
+        sort: args.sort ?? "sim",
       });
-      const maxPrice = input.max_price ? Number(input.max_price) : undefined;
+      const maxPrice = args.max_price;
       const filtered = maxPrice
         ? items.filter((i) => Number(i.lprice) <= maxPrice)
         : items;
@@ -88,14 +116,15 @@ export async function executeTool(
         productId: i.productId,
       }));
       return {
-        summary: `'${input.query}' 검색 → ${result.length}개 상품${maxPrice ? ` (${maxPrice.toLocaleString()}원 이하)` : ""}`,
+        summary: `'${args.query}' 검색 → ${result.length}개 상품${maxPrice ? ` (${maxPrice.toLocaleString()}원 이하)` : ""}`,
         result,
       };
     }
     case "search_reviews": {
-      const posts = await searchBlog(String(input.query), { display: 8 });
+      const args = validate(ReviewInput, input);
+      const posts = await searchBlog(args.query, { display: 8 });
       return {
-        summary: `'${input.query}' 후기 ${posts.length}건 수집`,
+        summary: `'${args.query}' 후기 ${posts.length}건 수집`,
         result: posts.map((p) => ({
           title: p.title,
           snippet: p.description,
@@ -105,8 +134,9 @@ export async function executeTool(
       };
     }
     case "search_law": {
+      const args = validate(LawInput, input);
       // 캐시는 도구 레벨(가변 LLM 질의)이 아니라 위임 레벨(안정적 사용자 질문)에서 수행 — agents.ts 참고
-      const articles = await searchLawGraph(String(input.question), {
+      const articles = await searchLawGraph(args.question, {
         topK: 4,
         expandHops: 1,
       });

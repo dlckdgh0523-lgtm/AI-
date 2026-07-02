@@ -14,7 +14,8 @@
     "setup-cache": "tsx scripts/setup-cache.ts",
     "robust": "tsx scripts/robustness.ts",
     "test-pii": "tsx scripts/test-pii.ts",
-    "ab": "tsx scripts/ab-architecture.ts"
+    "ab": "tsx scripts/ab-architecture.ts",
+    "test-zod": "tsx scripts/test-zod.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",

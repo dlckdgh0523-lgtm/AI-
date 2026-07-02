@@ -37,17 +37,32 @@ body {
 .markdown-body strong { font-weight: 700; }
 .markdown-body a { color: #2563eb; text-decoration: underline; }
 .markdown-body table {
-  border-collapse: collapse;
-  margin: 0.8em 0;
-  font-size: 0.8rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 0.9em 0;
+  font-size: 0.82rem;
   width: 100%;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  overflow: hidden;
 }
 .markdown-body th, .markdown-body td {
-  border: 1px solid #e4e4e7;
-  padding: 6px 10px;
+  border-bottom: 1px solid #f0f0f2;
+  border-right: 1px solid #f0f0f2;
+  padding: 8px 12px;
   text-align: left;
+  vertical-align: top;
 }
-.markdown-body th { background: #fafafa; font-weight: 600; }
+.markdown-body th:last-child, .markdown-body td:last-child { border-right: none; }
+.markdown-body tr:last-child td { border-bottom: none; }
+.markdown-body thead th {
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+.markdown-body tbody tr:nth-child(even) { background: #fafafa; }
+.markdown-body tbody td:first-child { font-weight: 600; color: #1e293b; }
 .markdown-body code {
   background: #f4f4f5;
   padding: 1px 5px;

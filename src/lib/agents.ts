@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { TOOLS, executeTool } from "./tools";
 import { verifyLawReport, RetrievedArticle } from "./verify";
 import { SECURITY_RULES, wrapToolData } from "./security";
+import { cacheLookup, cacheStore } from "./semantic-cache";
 
 const client = new Anthropic();
 // 오케스트레이터(판단·합성, route.ts)는 고성능 Opus, 서브 에이전트(조사)는 저비용 Haiku로 분리.
@@ -213,15 +214,46 @@ export async function runSubAgent(
   };
 }
 
-/** 오케스트레이터의 위임 도구 실행 — 서브 에이전트 루프를 돌리고 보고서 반환 */
+/**
+ * 오케스트레이터의 위임 도구 실행 — 서브 에이전트 루프를 돌리고 보고서 반환.
+ *
+ * 법률 위임은 **사용자 원 질문**을 키로 의미 캐시한다 (진로나침반 방식).
+ * 핵심: LLM이 생성한 가변 질의가 아니라 안정적인 사용자 입력을 임베딩하므로,
+ * 의미가 같은 질문(예: "환불 며칠?" ≈ "청약철회 기간?")이 실제로 히트한다.
+ * 법령은 요청마다 바뀌지 않으므로 법률 보고서 캐시는 안전하다 (상품 추천은 시세 변동 때문에 캐시 안 함).
+ */
 export async function executeDelegation(
   toolName: string,
   input: Record<string, unknown>,
-  emit: TraceEmitter
+  emit: TraceEmitter,
+  userQuestion?: string
 ): Promise<{ report: string; usage: SubAgentResult["usage"] }> {
   const agentKey = toolName === "delegate_shopping" ? "shopping" : "law";
   const task = String(input.task ?? "");
   const spec = SUB_AGENTS[agentKey];
+
+  // 법률 위임: 사용자 원 질문 기반 의미 캐시 조회
+  let cachedQueryVec: number[] | undefined;
+  if (agentKey === "law" && userQuestion) {
+    const cached = await cacheLookup<{ report: string }>(userQuestion);
+    cachedQueryVec = cached.queryVec;
+    if (cached.hit && cached.result) {
+      emit({
+        type: "cache_hit",
+        agent: "law",
+        similarity: cached.similarity,
+        cachedQuestion: cached.cachedQuestion,
+      });
+      emit({
+        type: "agent_done",
+        agent: agentKey,
+        label: `${spec.label} (의미 캐시 히트)`,
+        iterations: 0,
+        usage: { input_tokens: 0, output_tokens: 0 },
+      });
+      return { report: cached.result.report, usage: { input_tokens: 0, output_tokens: 0 } };
+    }
+  }
 
   emit({ type: "agent_start", agent: agentKey, label: spec.label, task });
   const result = await runSubAgent(agentKey, task, emit);
@@ -252,6 +284,11 @@ export async function executeDelegation(
         error: e instanceof Error ? e.message : String(e),
       });
     }
+  }
+
+  // 법률 보고서를 사용자 원 질문 키로 캐시 저장 (조회 때 계산한 임베딩 재사용)
+  if (agentKey === "law" && userQuestion && cachedQueryVec) {
+    await cacheStore(userQuestion, cachedQueryVec, { report });
   }
 
   emit({

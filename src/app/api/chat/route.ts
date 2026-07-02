@@ -42,6 +42,12 @@ export async function POST(req: Request) {
       };
 
       const messages: Anthropic.MessageParam[] = [...history];
+      // 사용자 원 질문 — 법률 위임 의미 캐시의 안정적 키로 사용
+      const lastUserMsg = [...history].reverse().find((m) => m.role === "user");
+      const userQuestion =
+        typeof lastUserMsg?.content === "string"
+          ? lastUserMsg.content
+          : JSON.stringify(lastUserMsg?.content ?? "");
       let totalInputTokens = 0;
       let totalOutputTokens = 0;
       let answerText = "";
@@ -50,7 +56,8 @@ export async function POST(req: Request) {
         if (
           event.type === "agent_start" ||
           event.type === "agent_done" ||
-          event.type === "verify_result"
+          event.type === "verify_result" ||
+          event.type === "cache_hit"
         ) {
           traceLog.push(event);
         } else if (event.type === "tool_use") {
@@ -102,13 +109,7 @@ export async function POST(req: Request) {
               cache_read: response.usage.cache_read_input_tokens ?? 0,
             };
             send({ type: "done", usage });
-
-            const lastUser = [...history].reverse().find((m) => m.role === "user");
-            const question =
-              typeof lastUser?.content === "string"
-                ? lastUser.content
-                : JSON.stringify(lastUser?.content ?? "");
-            void logConversation({ question, answer: answerText, traces: traceLog, usage });
+            void logConversation({ question: userQuestion, answer: answerText, traces: traceLog, usage });
             break;
           }
 
@@ -125,7 +126,8 @@ export async function POST(req: Request) {
                 const { report, usage } = await executeDelegation(
                   tu.name,
                   tu.input as Record<string, unknown>,
-                  emit
+                  emit,
+                  userQuestion
                 );
                 totalInputTokens += usage.input_tokens;
                 totalOutputTokens += usage.output_tokens;

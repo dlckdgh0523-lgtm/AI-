@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 interface Row {
   id: string;
@@ -27,6 +25,11 @@ export default function AdminPage() {
   const [selected, setSelected] = useState<Row | null>(null);
 
   useEffect(() => {
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+      setLoading(false);
+      return;
+    }
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
     supabase
       .from("conversations")
       .select("*")

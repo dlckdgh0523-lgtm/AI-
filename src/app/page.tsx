@@ -355,19 +355,24 @@ export default function Home() {
               </div>
             )}
 
-            {/* 후속 유도질문 칩 (작은 박스) */}
+            {/* 후속 액션 카드 (재검색·후속질문) */}
             {suggestions.length > 0 && !streaming && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                <span className="w-full text-xs text-zinc-400">이어서 물어보기</span>
-                {suggestions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => send(s)}
-                    className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-700 hover:border-blue-400 hover:bg-blue-100"
-                  >
-                    {s}
-                  </button>
-                ))}
+              <div className="pt-1">
+                <span className="mb-2 block text-xs font-medium text-zinc-400">
+                  💬 이어서 물어보기
+                </span>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => send(s)}
+                      className="flex items-center justify-between gap-2 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 px-3.5 py-2.5 text-left text-sm text-blue-800 transition hover:border-blue-400 hover:shadow-sm"
+                    >
+                      <span className="line-clamp-2">{s}</span>
+                      <span className="shrink-0 text-blue-400">→</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             <div ref={bottomRef} />

@@ -24,17 +24,31 @@ const FOLLOWUP_SCHEMA = {
   additionalProperties: false,
 };
 
-/** 답변 맥락에 이어질 후속 유도질문 3개 생성 (사용자 관점의 짧은 질문) */
-async function generateFollowups(question: string, answer: string): Promise<string[]> {
+/**
+ * 답변 맥락에 이어질 후속 유도질문/재검색 액션 3개 생성 (사용자 1인칭 짧은 문장).
+ * 상품 추천이 있었으면 "재검색 액션" 위주(더 저렴한 걸로, 무소음으로 등),
+ * 아니면 한 걸음 더 들어가는 후속 질문.
+ */
+async function generateFollowups(
+  question: string,
+  answer: string,
+  hasProducts: boolean
+): Promise<string[]> {
+  const guide = hasProducts
+    ? "직전 답변이 상품을 추천했습니다. 사용자가 검색을 좁히거나 바꿀 수 있는 '재검색 액션'을 제안하세요. " +
+      "예: '조금 더 저렴한 걸로 추천해줘', '무소음 위주로 다시 비교해줘', '더 큰 용량으로 보여줘', " +
+      "'환불 규정도 알려줘'. 별점·리뷰 수·구매 수는 네이버 API에 없으므로 그런 필터를 제안하지 마세요. " +
+      "가격·기능·용도·소비자권리 축으로만 제안하세요."
+    : "직전 답변에 이어 사용자가 실제로 궁금해할 한 걸음 더 들어가는 후속 질문을 제안하세요.";
   const res = await client.messages.create({
     model: "claude-haiku-4-5",
     max_tokens: 400,
     output_config: { format: { type: "json_schema", schema: FOLLOWUP_SCHEMA } },
     system:
-      "당신은 쇼핑·소비자권리 상담의 후속 질문을 제안하는 도우미입니다. " +
-      "직전 답변에 이어 사용자가 실제로 궁금해할 만한 짧은 후속 질문 3개를 생성하세요. " +
-      "각 질문은 20자 내외, 사용자 1인칭 말투(예: '반품 배송비는 얼마야?'), 서로 다른 측면을 다룹니다. " +
-      "답변에 이미 다 나온 내용은 피하고, 한 걸음 더 들어가는 질문으로 만드세요.",
+      "당신은 쇼핑·소비자권리 상담의 후속 액션을 제안하는 도우미입니다. " +
+      "짧은 문장 3개를 생성하세요. 각 20자 내외, 사용자 1인칭 말투, 서로 다른 축을 다룹니다. " +
+      "답변에 이미 다 나온 내용은 피합니다.\n" +
+      guide,
     messages: [
       { role: "user", content: `[사용자 질문]\n${question}\n\n[답변 요약]\n${answer.slice(0, 1500)}` },
     ],
@@ -141,9 +155,15 @@ export async function POST(req: Request) {
               output_tokens: totalOutputTokens,
               cache_read: response.usage.cache_read_input_tokens ?? 0,
             };
-            // 후속 유도질문 생성 (저비용 Haiku, 실패해도 무시)
+            // 후속 유도질문/재검색 액션 생성 (저비용 Haiku, 실패해도 무시)
             try {
-              const suggestions = await generateFollowups(userQuestion, answerText);
+              const hasProducts = traceLog.some(
+                (t) =>
+                  typeof t === "object" &&
+                  t !== null &&
+                  (t as { name?: string }).name === "search_products"
+              );
+              const suggestions = await generateFollowups(userQuestion, answerText, hasProducts);
               if (suggestions.length) send({ type: "suggestions", items: suggestions });
             } catch { /* 유도질문 생성 실패는 무시 */ }
 

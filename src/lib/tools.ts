@@ -9,6 +9,7 @@ import { searchLawGraph } from "./graphrag";
  */
 const ProductInput = z.object({
   query: z.string().min(1, "검색어가 비어 있습니다"),
+  min_price: z.number().positive().optional(),
   max_price: z.number().positive().optional(),
   sort: z.enum(["sim", "asc", "dsc"]).optional(),
 });
@@ -40,6 +41,10 @@ export const TOOLS: Anthropic.Tool[] = [
       type: "object" as const,
       properties: {
         query: { type: "string", description: "상품 검색 키워드" },
+        min_price: {
+          type: "number",
+          description: "최소 가격 (원). 사용자가 하한을 말했을 때만 지정",
+        },
         max_price: {
           type: "number",
           description: "최대 예산 (원). 사용자가 예산을 말했을 때만 지정",
@@ -97,14 +102,31 @@ export async function executeTool(
   switch (name) {
     case "search_products": {
       const args = validate(ProductInput, input);
+      const { min_price: minPrice, max_price: maxPrice } = args;
+      const hasPriceFilter = Boolean(minPrice || maxPrice);
+      // 가격 필터가 있으면: 관련도순으로 넓게(100개) 가져와 가격 범위로 필터한 뒤,
+      // 요청된 정렬을 클라이언트에서 적용. (서버 asc/dsc 정렬 + 범위 조합의 빈 결과 방지)
       const items = await searchShopping(args.query, {
-        display: 10,
-        sort: args.sort ?? "sim",
+        display: hasPriceFilter ? 100 : 20,
+        sort: hasPriceFilter ? "sim" : (args.sort ?? "sim"),
       });
-      const maxPrice = args.max_price;
-      const filtered = maxPrice
-        ? items.filter((i) => Number(i.lprice) <= maxPrice)
-        : items;
+      const filtered = items.filter((i) => {
+        const price = Number(i.lprice);
+        if (minPrice && price < minPrice) return false;
+        if (maxPrice && price > maxPrice) return false;
+        return true;
+      });
+      // 가격 필터 상황에서 요청 정렬을 클라이언트에서 적용
+      if (hasPriceFilter && args.sort === "asc") filtered.sort((a, b) => Number(a.lprice) - Number(b.lprice));
+      if (hasPriceFilter && args.sort === "dsc") filtered.sort((a, b) => Number(b.lprice) - Number(a.lprice));
+      const priceLabel =
+        minPrice && maxPrice
+          ? ` (${minPrice.toLocaleString()}~${maxPrice.toLocaleString()}원)`
+          : maxPrice
+            ? ` (${maxPrice.toLocaleString()}원 이하)`
+            : minPrice
+              ? ` (${minPrice.toLocaleString()}원 이상)`
+              : "";
       const result = filtered.slice(0, 8).map((i) => ({
         title: i.title,
         price: Number(i.lprice),
@@ -116,7 +138,7 @@ export async function executeTool(
         productId: i.productId,
       }));
       return {
-        summary: `'${args.query}' 검색 → ${result.length}개 상품${maxPrice ? ` (${maxPrice.toLocaleString()}원 이하)` : ""}`,
+        summary: `'${args.query}' 검색 → ${result.length}개 상품${priceLabel}`,
         result,
       };
     }

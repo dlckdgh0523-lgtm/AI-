@@ -36,22 +36,26 @@
 사용자 자연어 입력
    │
    ▼
-Next.js /api/chat  ──  Claude (tool use 루프, adaptive thinking, SSE 스트리밍)
-   │                        │ 도구 선택·조합 판단
-   │            ┌───────────┼───────────────┐
-   │            ▼           ▼               ▼
-   │     search_products  search_reviews  search_law
-   │     (네이버 쇼핑 API)  (네이버 블로그)   (GraphRAG)
-   │                                        │
-   │                              Neo4j AuraDB
-   │                              · 법령 4종, 조문 186개, 참조 엣지 258개
-   │                              · 벡터 인덱스(Voyage 임베딩) + 풀텍스트
-   │                              · 벡터 진입 → REFERS_TO 1홉 확장
+Next.js /api/chat ── 오케스트레이터 (Claude, adaptive thinking, SSE 스트리밍)
+   │                  · 질문 분해 → 전문 에이전트 위임 → 보고 합성
+   │                  · 복수 위임은 같은 턴에 병렬 실행 (Promise.all)
+   │            ┌─────────────┴─────────────┐
+   │            ▼ (병렬)                     ▼ (병렬)
+   │     🛒 쇼핑 전문 에이전트          ⚖️ 법률 전문 에이전트
+   │     · 독립 tool use 루프           · 독립 tool use 루프
+   │     · search_products             · search_law (GraphRAG)
+   │     · search_reviews                       │
+   │     (네이버 쇼핑/블로그 API)          Neo4j AuraDB
+   │                                   · 법령 4종, 조문 186개, 참조 엣지 258개
+   │                                   · 벡터 인덱스(Voyage 임베딩) + 풀텍스트
+   │                                   · 벡터 진입 → REFERS_TO 1홉 확장
    ▼
-트레이스 UI (판단 과정·도구 호출·그래프 탐색 경로 실시간 표시)
+트레이스 UI (오케스트레이터 판단·위임 과제·에이전트별 도구 호출을 레인으로 실시간 표시)
    +
 Supabase (대화 로그) ──▶ /admin 운영 대시보드 (토큰·비용·도구 분포)
 ```
+
+**에이전트 설계 (agent-as-tool 패턴)**: 오케스트레이터에게 서브 에이전트는 `delegate_shopping` / `delegate_law`라는 도구입니다. 각 전문 에이전트는 역할별 시스템 프롬프트와 도구 부분집합으로 독립 루프를 돌고 보고서만 반환합니다. 역할별 컨텍스트 분리로 프롬프트가 짧고 정확해지며, 두 영역이 섞인 질문("이어폰 추천해주고 환불 규정도")에서 병렬 위임으로 레이턴시를 줄입니다. 비용 제어로 서브 에이전트는 `effort: medium` + 도구 호출 상한을 적용했습니다 (복합 질문 기준 회당 약 $0.79 → $0.30).
 
 ### 그래프 스키마 (온톨로지)
 

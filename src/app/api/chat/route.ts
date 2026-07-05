@@ -16,7 +16,8 @@ const client = new Anthropic();
 // 합성(보고서 통합·표 작성)은 Sonnet 5로 충분하고, 입력 $5→$3 / 출력 $25→$15로
 // 오케스트레이터 비용 ~40% 절감. 서브에이전트는 기존대로 Haiku 4.5 (agents.ts).
 const MODEL = "claude-sonnet-5";
-const MAX_ITERATIONS = 6;
+// 위임 루프 + 길이 제한 이어쓰기가 같은 카운터를 쓰므로 여유를 둔다
+const MAX_ITERATIONS = 8;
 
 /**
  * 요청 바디 검증 — /api/chat은 공개 엔드포인트라 messages를 신뢰할 수 없다.
@@ -199,6 +200,21 @@ export async function POST(req: Request) {
           const response = await msgStream.finalMessage();
           totalInputTokens += response.usage.input_tokens;
           totalOutputTokens += response.usage.output_tokens;
+
+          // 길이 제한(max_tokens)으로 답변이 중간에 끊긴 경우 — 잘린 답을 최종본으로
+          // 내보내지 않고 이어쓰기를 요청한다. 법령 답변은 조문 인용 + 비교표가 길어
+          // adaptive thinking 토큰까지 합치면 상한에 닿는 경우가 있다.
+          if (response.stop_reason === "max_tokens") {
+            send({ type: "continuation", n: iteration + 1 });
+            messages.push({ role: "assistant", content: response.content });
+            messages.push({
+              role: "user",
+              content:
+                "(시스템) 직전 응답이 길이 제한으로 중단되었습니다. 이미 출력한 내용은 " +
+                "반복하지 말고, 중단된 지점부터 자연스럽게 이어서 답변을 완성하세요.",
+            });
+            continue;
+          }
 
           if (response.stop_reason !== "tool_use") {
             const usage = {

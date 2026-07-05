@@ -161,9 +161,13 @@ create policy "no anon select" on conversations for select to anon using (false)
 create policy "allow insert" on conversations for insert to anon with check (true);
 ```
 
+### 답변 잘림 방지 (이어쓰기 루프)
+
+법령 답변은 조문 인용·비교표가 길어 `max_tokens`에 닿아 중간에 끊기는 사례가 있었습니다. 오케스트레이터와 서브에이전트 모두 `stop_reason: "max_tokens"`를 감지하면 **잘린 답을 최종본으로 내보내지 않고 "중단 지점부터 이어서"를 요청해 완성**합니다. 서브에이전트 보고서 상한도 4096→8192로 올렸고, 이어쓰기까지 소진되면 확보한 부분이라도 생략 고지와 함께 전달합니다.
+
 ### 프롬프트의 알려진 한계 (적대적 자기검토)
 
-- **재검색 요청은 재위임하도록 프롬프트에 명시**했습니다("더 저렴한 걸로"를 직접 답하지 말고 delegate_shopping 재호출). 프롬프트 준수에 의존하는 부분이라 회귀 테스트로 지켜봐야 합니다.
+- **재검색 요청은 재위임하도록 프롬프트에 명시**했습니다("더 저렴한 걸로"를 직접 답하지 말고 delegate_shopping 재호출). 프롬프트 준수에 의존하는 부분이라 **회귀 테스트로 검증합니다**: `npm run test-redelegate` — 이전 턴을 히스토리로 넣고 오케스트레이터의 첫 행동이 올바른 재위임인지 확인 (가격 변경·기능 변경·법령 후속·범위 밖 4케이스, 케이스당 모델 호출 1회).
 
 ## 6. 한계와 개선 방향
 

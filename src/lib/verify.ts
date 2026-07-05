@@ -152,7 +152,7 @@ async function reviseReport(
     .join("\n\n");
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: 8192, // 수정 보고서 전문 재출력 — 법령 인용이 길어 4096에서 잘릴 수 있음
     output_config: { effort: "medium" },
     system:
       "당신은 법령 보고서 교정자입니다. 검증에 실패한 인용을 아래 실제 조문 원문에 맞게 수정하거나, " +

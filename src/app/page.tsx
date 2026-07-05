@@ -249,6 +249,12 @@ export default function Home() {
             >
               📊 대시보드
             </a>
+            <a
+              href="/about"
+              className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[#4b4b4b] hover:bg-[#f1f3f5]"
+            >
+              📄 기술 문서
+            </a>
           </nav>
         </header>
 

@@ -234,15 +234,19 @@ export async function executeDelegation(
   input: Record<string, unknown>,
   emit: TraceEmitter,
   userQuestion?: string
-): Promise<{ report: string; usage: SubAgentResult["usage"] }> {
+): Promise<{ report: string; usage: SubAgentResult["usage"]; retrievedLaw: RetrievedArticle[] }> {
   const agentKey = toolName === "delegate_shopping" ? "shopping" : "law";
   const task = String(input.task ?? "");
   const spec = SUB_AGENTS[agentKey];
 
   // 법률 위임: 사용자 원 질문 기반 의미 캐시 조회
+  // 캐시에는 보고서와 함께 당시 검색된 조문 집합(retrievedLaw)을 저장해,
+  // 캐시 히트 경로에서도 최종 답변 인용 검증이 가능하게 한다.
   let cachedQueryVec: number[] | undefined;
   if (agentKey === "law" && userQuestion) {
-    const cached = await cacheLookup<{ report: string }>(userQuestion);
+    const cached = await cacheLookup<{ report: string; retrievedLaw?: RetrievedArticle[] }>(
+      userQuestion
+    );
     cachedQueryVec = cached.queryVec;
     if (cached.hit && cached.result) {
       emit({
@@ -258,7 +262,11 @@ export async function executeDelegation(
         iterations: 0,
         usage: { input_tokens: 0, output_tokens: 0 },
       });
-      return { report: cached.result.report, usage: { input_tokens: 0, output_tokens: 0 } };
+      return {
+        report: cached.result.report,
+        usage: { input_tokens: 0, output_tokens: 0 },
+        retrievedLaw: cached.result.retrievedLaw ?? [],
+      };
     }
   }
 
@@ -294,8 +302,9 @@ export async function executeDelegation(
   }
 
   // 법률 보고서를 사용자 원 질문 키로 캐시 저장 (조회 때 계산한 임베딩 재사용)
+  // 검증(revise 포함)을 거친 최종 보고서 + 검색 조문 집합을 함께 저장
   if (agentKey === "law" && userQuestion && cachedQueryVec) {
-    await cacheStore(userQuestion, cachedQueryVec, { report });
+    await cacheStore(userQuestion, cachedQueryVec, { report, retrievedLaw: result.retrievedLaw });
   }
 
   emit({
@@ -305,5 +314,5 @@ export async function executeDelegation(
     iterations: result.iterations,
     usage: result.usage,
   });
-  return { report, usage: result.usage };
+  return { report, usage: result.usage, retrievedLaw: result.retrievedLaw };
 }

@@ -16,7 +16,8 @@
     "test-pii": "tsx scripts/test-pii.ts",
     "ab": "tsx scripts/ab-architecture.ts",
     "test-zod": "tsx scripts/test-zod.ts",
-    "test-filter": "tsx scripts/test-filter.ts"
+    "test-filter": "tsx scripts/test-filter.ts",
+    "test-ratelimit": "tsx scripts/test-ratelimit.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",

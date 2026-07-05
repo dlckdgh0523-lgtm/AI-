@@ -38,6 +38,8 @@ export interface ParsedArticle {
 
 /** 법령 XML에서 조문 배열 추출 (실데이터 확인 후 필드명 조정 필요할 수 있음) */
 export function parseArticles(lawDoc: unknown): ParsedArticle[] {
+  // XML 파서 출력은 스키마가 유동적(단일/배열 혼재)이라 any로 다루고 접근마다 방어한다
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const doc = lawDoc as Record<string, any>;
   const law = doc?.법령;
   if (!law) throw new Error("법령 루트 노드를 찾을 수 없음");

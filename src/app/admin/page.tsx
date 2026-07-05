@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import Link from "next/link";
 
 interface Trace {
   kind: string;
@@ -30,9 +27,10 @@ interface TopArticle {
   refs: number;
 }
 
-// Claude Opus 4.8 단가 기준 개략 비용 (USD/1M tokens)
-const PRICE_IN = 5;
-const PRICE_OUT = 25;
+// Claude Sonnet 5 단가 기준 개략 비용 (USD/1M tokens) — 오케스트레이터 기준.
+// 서브에이전트는 Haiku 4.5($1/$5)라 실제 비용은 이보다 낮게 나온다 (보수적 상한).
+const PRICE_IN = 3;
+const PRICE_OUT = 15;
 
 // 도구 이름 → 사람이 읽는 라벨 (평가자 혼동 방지)
 const TOOL_LABELS: Record<string, string> = {
@@ -59,20 +57,14 @@ export default function AdminPage() {
   const [scale, setScale] = useState<{ laws: number; articles: number; refs: number } | null>(null);
 
   useEffect(() => {
-    if (SUPABASE_URL && SUPABASE_KEY) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-      supabase
-        .from("conversations")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200)
-        .then(({ data }) => {
-          setRows((data as Row[]) ?? []);
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
+    // 대화 로그는 서버 라우트 경유로 조회 — anon 키로 클라이언트에서 직접 읽지 않는다
+    fetch("/api/admin/logs")
+      .then((r) => r.json())
+      .then((d) => {
+        setRows((d.rows as Row[]) ?? []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
     // 법령 그래프 인사이트 (서버 API, 대화 로그와 무관하게 항상 표시)
     fetch("/api/insights")
       .then((r) => r.json())
@@ -143,12 +135,20 @@ export default function AdminPage() {
               </p>
             </div>
           </div>
-          <a
-            href="/"
-            className="rounded-lg border border-[#dfe2e7] bg-white px-3 py-1.5 text-[13px] font-medium text-[#4b4b4b] hover:bg-[#f1f3f5]"
-          >
-            ← 채팅으로
-          </a>
+          <div className="flex gap-1.5">
+            <Link
+              href="/about"
+              className="rounded-lg border border-[#dfe2e7] bg-white px-3 py-1.5 text-[13px] font-medium text-[#4b4b4b] hover:bg-[#f1f3f5]"
+            >
+              📄 기술 문서
+            </Link>
+            <Link
+              href="/"
+              className="rounded-lg border border-[#dfe2e7] bg-white px-3 py-1.5 text-[13px] font-medium text-[#4b4b4b] hover:bg-[#f1f3f5]"
+            >
+              ← 채팅으로
+            </Link>
+          </div>
         </header>
 
         {/* 지표 카드 */}

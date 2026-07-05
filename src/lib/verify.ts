@@ -1,7 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic();
-const MODEL = "claude-opus-4-8";
+// 검증관도 Opus → Sonnet 5 다운시프트: 대조·반박은 원문이 주어진 판별 과제라
+// 최고 성능 모델이 필요 없고, 요청당 비용을 오케스트레이터와 함께 낮춘다.
+const MODEL = "claude-sonnet-5";
 
 /** 검증에 쓰이는, 이번 조사에서 실제 검색된 조문 */
 export interface RetrievedArticle {

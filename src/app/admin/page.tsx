@@ -61,7 +61,9 @@ export default function AdminPage() {
     fetch("/api/admin/logs")
       .then((r) => r.json())
       .then((d) => {
-        setRows((d.rows as Row[]) ?? []);
+        // 방어: 초기 CLI 테스트에서 인코딩이 깨진 채 저장된 행(치환문자 U+FFFD 포함)은 표시하지 않는다
+        const clean = ((d.rows as Row[]) ?? []).filter((r) => !/�/.test(r.question ?? ""));
+        setRows(clean);
         setLoading(false);
       })
       .catch(() => setLoading(false));

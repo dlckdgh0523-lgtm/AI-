@@ -9,6 +9,8 @@ import { UI, type Lang } from "@/lib/i18n";
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  products?: Product[];      // 이 턴에서 검색된 상품 (턴별로 유지)
+  suggestions?: string[];    // 이 턴의 후속 액션
 }
 
 interface Product {
@@ -57,8 +59,6 @@ const GROUP_STYLE = [
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [traces, setTraces] = useState<TraceEvent[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [status, setStatus] = useState(""); // 답변 전 현재 작업 상태 (채팅창 로딩 표시)
@@ -88,15 +88,13 @@ export default function ChatPage() {
   useEffect(() => {
     // 사용자가 맨 아래에 있을 때만 따라 내려감 — 위로 스크롤해 상품을 볼 땐 방해하지 않음
     if (stickBottom.current) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, products, suggestions]);
+  }, [messages]);
 
   async function send(text: string) {
     if (!text.trim() || streaming) return;
     const history = [...messages, { role: "user" as const, content: text }];
     setMessages([...history, { role: "assistant", content: "" }]);
     setTraces([]);
-    setSuggestions([]);
-    setProducts([]);
     setInput("");
     setStreaming(true);
     setStatus(t.status.analyzing);
@@ -229,15 +227,24 @@ export default function ChatPage() {
         ]);
         setStatus(t.status.writing); // 검색 끝 → 답변 작성 단계
         if (event.name === "search_products" && Array.isArray(event.result)) {
-          setProducts((prev) => {
-            const seen = new Set(prev.map((p) => p.link));
+          // 상품을 현재(마지막) 어시스턴트 메시지에 귀속 → 이후 질문에도 그 턴 아래에 그대로 유지
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            const seen = new Set((last.products ?? []).map((p) => p.link));
             const added = (event.result as Product[]).filter((p) => p.link && !seen.has(p.link));
-            return [...prev, ...added];
+            next[next.length - 1] = { ...last, products: [...(last.products ?? []), ...added] };
+            return next;
           });
         }
         break;
       case "suggestions":
-        setSuggestions((event.items as string[]) ?? []);
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          next[next.length - 1] = { ...last, suggestions: (event.items as string[]) ?? [] };
+          return next;
+        });
         break;
     }
   }
@@ -391,15 +398,15 @@ export default function ChatPage() {
                         )}
                       </div>
 
-                      {/* 상품 카드 (마지막 어시스턴트 메시지 아래) */}
-                      {i === messages.length - 1 && products.length > 0 && (
+                      {/* 상품 카드 — 각 메시지(턴)에 귀속되어 이후 대화에서도 유지 */}
+                      {m.products && m.products.length > 0 && (
                         <div className="fade-in mt-3">
                           <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-[var(--ink-3)]">
                             <span className="h-[6px] w-[6px] rotate-45 rounded-[1px] bg-[var(--pine)]" />
-                            {t.naverResults} <span className="figure text-[var(--ink-2)]">{products.length}</span>{t.unit}
+                            {t.naverResults} <span className="figure text-[var(--ink-2)]">{m.products.length}</span>{t.unit}
                           </p>
                           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                            {products.slice(0, 9).map((p) => (
+                            {m.products.slice(0, 9).map((p) => (
                               <a
                                 key={p.link}
                                 href={p.link}
@@ -434,12 +441,12 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                      {/* 후속 액션 */}
-                      {i === messages.length - 1 && suggestions.length > 0 && !streaming && (
+                      {/* 후속 액션 — 마지막 메시지에서만, 스트리밍 종료 후 노출 */}
+                      {i === messages.length - 1 && m.suggestions && m.suggestions.length > 0 && !streaming && (
                         <div className="fade-in mt-3">
                           <p className="eyebrow mb-2">{t.followupTitle}</p>
                           <div className="flex flex-wrap gap-2">
-                            {suggestions.map((s) => (
+                            {m.suggestions.map((s) => (
                               <button
                                 key={s}
                                 onClick={() => send(s)}

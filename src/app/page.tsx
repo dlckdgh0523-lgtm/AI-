@@ -40,31 +40,83 @@ const TOOL_LABELS: Record<string, string> = {
   search_law: "법령 검색 · GraphRAG",
 };
 
-const AGENT_META: Record<string, { icon: string; accent: string; bg: string }> = {
-  shopping: { icon: "🛒", accent: "#03c75a", bg: "#e8f8ee" },
-  law: { icon: "⚖️", accent: "#8b5cf6", bg: "#f3f0ff" },
+// 오른쪽 장부(worklog)는 어두운 재질 — 밝은 accent 사용
+const AGENT_META: Record<string, { icon: string; accent: string; line: string; bg: string }> = {
+  shopping: { icon: "商", accent: "#7cc4a0", line: "rgba(124,196,160,0.34)", bg: "rgba(124,196,160,0.10)" },
+  law: { icon: "法", accent: "#e5806f", line: "rgba(229,128,111,0.34)", bg: "rgba(229,128,111,0.10)" },
 };
 
-const EXAMPLE_GROUPS: { icon: string; label: string; desc: string; items: string[] }[] = [
+const EXAMPLE_GROUPS: {
+  hanja: string;
+  world: string;
+  accent: string;
+  tint: string;
+  label: string;
+  desc: string;
+  items: string[];
+}[] = [
   {
-    icon: "🛒",
+    hanja: "商",
+    world: "상품 창구",
+    accent: "var(--pine)",
+    tint: "var(--pine-tint)",
     label: "상품 추천 · 비교",
-    desc: "상황을 말하면 조건에 맞는 상품을 찾아 비교",
+    desc: "상황을 말하면 조건에 맞는 상품을 찾아 비교해 드려요.",
     items: [
       "장마철 원룸에서 쓸 제습기 10만원 이하로 추천해줘",
       "캠핑용 버너 2개만 비교해서 추천해줘",
     ],
   },
   {
-    icon: "⚖️",
+    hanja: "法",
+    world: "권리 창구",
+    accent: "var(--seal)",
+    tint: "var(--seal-tint)",
     label: "소비자 권리 · 법령",
-    desc: "환불·교환·광고 규제를 법 조문 근거로 안내",
+    desc: "환불·교환·광고 규제를 실제 법 조문 근거로 안내해요.",
     items: [
       "온라인에서 산 노트북 개봉했는데 환불 가능해?",
       "'전국 최저가 보장'이라고 광고 문구 써도 돼?",
     ],
   },
 ];
+
+/* ── 인주(印朱) 검증 도장 — 시그니처 ─────────────────────── */
+function Seal({ size = 96, uid = "s", stamp = false }: { size?: number; uid?: string; stamp?: boolean }) {
+  const pid = `sealArc-${uid}`;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      className={`seal-mark ${stamp ? "seal-stamp" : ""}`}
+      role="img"
+      aria-label="근거 검증 도장"
+    >
+      <defs>
+        <path id={pid} d="M50,50 m -37,0 a 37,37 0 1,1 74,0 a 37,37 0 1,1 -74,0" />
+      </defs>
+      <circle className="seal-ring" cx="50" cy="50" r="47" strokeWidth="2.4" />
+      <circle className="seal-ring" cx="50" cy="50" r="41.5" strokeWidth="0.9" />
+      <text className="seal-arc" fontSize="7">
+        <textPath href={`#${pid}`} startOffset="1%">
+          근거 검증 · 確認 · CITATION VERIFIED ·{" "}
+        </textPath>
+      </text>
+      <text
+        className="seal-hanja"
+        x="50"
+        y="51"
+        fontSize="29"
+        textAnchor="middle"
+        dominantBaseline="central"
+        letterSpacing="1"
+      >
+        確認
+      </text>
+    </svg>
+  );
+}
 
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -216,44 +268,44 @@ export default function Home() {
   const empty = messages.length === 0;
 
   return (
-    <div className="flex h-screen bg-[#f7f8fa] text-[#191919]">
+    <div className="flex h-screen bg-[var(--paper)] text-[var(--ink)]">
       <div className="flex flex-1 flex-col">
-        {/* 상단 네비게이션 */}
-        <header className="z-10 flex items-center justify-between border-b border-[#eaecef] bg-white/90 px-5 py-2.5 backdrop-blur">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#03c75a] font-black text-white shadow-sm">
-              쇼
-            </div>
+        {/* 상단 간판 */}
+        <header className="z-10 flex items-center justify-between border-b border-[var(--line)] bg-[var(--paper)]/85 px-5 py-2.5 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <Seal size={38} uid="brand" />
             <div className="leading-tight">
-              <div className="flex items-center gap-1.5 text-[15px] font-bold">
+              <div className="flex items-center gap-1.5 text-[15px] font-bold tracking-[-0.02em]">
                 쇼핑 컨시어지
-                <span className="rounded bg-[#e8f8ee] px-1.5 py-0.5 text-[10px] font-semibold text-[#02b350]">
+                <span className="rounded bg-[var(--seal-tint)] px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-wider text-[var(--seal-deep)]">
                   BETA
                 </span>
               </div>
-              <p className="text-[11px] text-[#767676]">AI 커머스 에이전트 · 상품추천 + 소비자권리</p>
+              <p className="eyebrow mt-0.5">Commerce × 소비자권리 · Verified</p>
             </div>
           </div>
-          <nav className="flex items-center gap-1.5">
+          <nav className="flex items-center gap-1">
             <button
               onClick={() => setShowTrace((v) => !v)}
               className={`rounded-lg px-3 py-1.5 text-[13px] font-medium transition ${
-                showTrace ? "bg-[#03c75a] text-white" : "text-[#4b4b4b] hover:bg-[#f1f3f5]"
+                showTrace
+                  ? "bg-[var(--ink)] text-[var(--paper)]"
+                  : "text-[var(--ink-2)] hover:bg-[var(--paper-2)]"
               }`}
             >
-              {showTrace ? "판단 과정 ✓" : "🔍 판단 과정"}
+              작업 기록{showTrace ? " ·" : ""}
             </button>
             <a
               href="/admin"
-              className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[#4b4b4b] hover:bg-[#f1f3f5]"
+              className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[var(--ink-2)] transition hover:bg-[var(--paper-2)]"
             >
-              📊 대시보드
+              대시보드
             </a>
             <a
               href="/about"
-              className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[#4b4b4b] hover:bg-[#f1f3f5]"
+              className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[var(--ink-2)] transition hover:bg-[var(--paper-2)]"
             >
-              📄 기술 문서
+              기술 문서
             </a>
           </nav>
         </header>
@@ -262,33 +314,52 @@ export default function Home() {
         <main className="flex-1 overflow-y-auto">
           {empty ? (
             <div className="mx-auto flex min-h-full max-w-2xl flex-col justify-center px-5 py-10">
-              <div className="mb-8 text-center">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#03c75a] text-2xl shadow-lg shadow-green-200">
-                  🛍️
+              <div className="mb-9 text-center">
+                <div className="mb-5 flex justify-center">
+                  <Seal size={104} uid="hero" stamp />
                 </div>
-                <h1 className="text-2xl font-bold tracking-tight">무엇을 도와드릴까요?</h1>
-                <p className="mt-2 text-sm text-[#767676]">
-                  상품을 찾아주고, 환불·교환 같은 소비자 권리를 법 조문 근거로 알려드려요.
+                <p className="eyebrow mb-3">AI 커머스 에이전트 · GraphRAG</p>
+                <h1 className="text-[30px] font-bold leading-[1.15] tracking-[-0.03em] text-[var(--ink)]">
+                  사는 것부터,<br />지키는 것까지.
+                </h1>
+                <p className="mx-auto mt-4 max-w-md text-[14px] leading-relaxed text-[var(--ink-3)]">
+                  필요한 상품을 찾아 비교해 드리고, 소비자 권리는 실제 법 조문을 근거로
+                  안내합니다. 모든 답변의 인용은 <span className="text-[var(--seal-deep)]">검증</span>을 거칩니다.
                 </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3.5 sm:grid-cols-2">
                 {EXAMPLE_GROUPS.map((g) => (
-                  <div key={g.label} className="rounded-2xl border border-[#eaecef] bg-white p-4 shadow-sm">
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="text-lg">{g.icon}</span>
-                      <span className="text-sm font-bold">{g.label}</span>
-                    </div>
-                    <p className="mb-3 text-[11px] text-[#767676]">{g.desc}</p>
-                    <div className="space-y-2">
-                      {g.items.map((ex) => (
-                        <button
-                          key={ex}
-                          onClick={() => send(ex)}
-                          className="w-full rounded-xl bg-[#f7f8fa] px-3 py-2.5 text-left text-[13px] leading-snug text-[#333] transition hover:bg-[#e8f8ee] hover:text-[#02b350]"
+                  <div
+                    key={g.label}
+                    className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-[0_1px_2px_rgba(33,29,24,0.04)]"
+                  >
+                    <div className="h-[3px] w-full" style={{ background: g.accent }} />
+                    <div className="p-4">
+                      <div className="mb-1 flex items-center gap-2">
+                        <span
+                          className="flex h-6 w-6 items-center justify-center rounded-md font-serif text-[13px] font-semibold text-white"
+                          style={{ background: g.accent }}
                         >
-                          {ex}
-                        </button>
-                      ))}
+                          {g.hanja}
+                        </span>
+                        <span className="text-[14px] font-bold">{g.label}</span>
+                      </div>
+                      <p className="mb-3 pl-8 text-[11.5px] leading-snug text-[var(--ink-3)]">{g.desc}</p>
+                      <div className="space-y-2">
+                        {g.items.map((ex) => (
+                          <button
+                            key={ex}
+                            onClick={() => send(ex)}
+                            className="group flex w-full items-start gap-2 rounded-xl bg-[var(--paper)] px-3 py-2.5 text-left text-[13px] leading-snug text-[var(--ink-2)] transition hover:bg-[var(--paper-2)]"
+                          >
+                            <span
+                              className="mt-[6px] h-[5px] w-[5px] shrink-0 rotate-45 rounded-[1px] opacity-70 transition group-hover:opacity-100"
+                              style={{ background: g.accent }}
+                            />
+                            {ex}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -299,17 +370,20 @@ export default function Home() {
               {messages.map((m, i) =>
                 m.role === "user" ? (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[82%] rounded-2xl rounded-tr-md bg-[#03c75a] px-4 py-2.5 text-[14px] leading-relaxed text-white shadow-sm">
+                    <div className="max-w-[82%] rounded-2xl rounded-tr-sm bg-[var(--ink)] px-4 py-2.5 text-[14px] leading-relaxed text-[var(--paper)] shadow-sm">
                       {m.content}
                     </div>
                   </div>
                 ) : (
                   <div key={i} className="flex gap-2.5">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e8f8ee] text-sm">
-                      🛍️
+                    <div
+                      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--pine)] font-serif text-[14px] text-white"
+                      title="컨시어지"
+                    >
+                      詢
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="rounded-2xl rounded-tl-md border border-[#eaecef] bg-white px-4 py-3 shadow-sm">
+                      <div className="rounded-2xl rounded-tl-sm border border-[var(--line)] bg-[var(--card)] px-4 py-3 shadow-[0_1px_2px_rgba(33,29,24,0.04)]">
                         {m.content ? (
                           <div className="markdown-body">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
@@ -319,8 +393,8 @@ export default function Home() {
                             <span className="typing-dot" />
                             <span className="typing-dot" />
                             <span className="typing-dot" />
-                            <span className="ml-2 text-[13px] text-[#767676]">
-                              에이전트가 판단하고 있어요
+                            <span className="ml-2 text-[13px] text-[var(--ink-3)]">
+                              컨시어지가 근거를 찾고 있어요
                             </span>
                           </div>
                         )}
@@ -329,8 +403,9 @@ export default function Home() {
                       {/* 상품 카드 (마지막 어시스턴트 메시지 아래) */}
                       {i === messages.length - 1 && products.length > 0 && (
                         <div className="fade-in mt-3">
-                          <p className="mb-2 flex items-center gap-1 text-[12px] font-semibold text-[#767676]">
-                            <span className="text-[#03c75a]">●</span> 네이버 쇼핑 검색 결과 {products.length}개
+                          <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-[var(--ink-3)]">
+                            <span className="h-[6px] w-[6px] rotate-45 rounded-[1px] bg-[var(--pine)]" />
+                            네이버 쇼핑 검색 결과 <span className="figure text-[var(--ink-2)]">{products.length}</span>개
                           </p>
                           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                             {products.slice(0, 9).map((p) => (
@@ -339,9 +414,9 @@ export default function Home() {
                                 href={p.link}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="group overflow-hidden rounded-xl border border-[#eaecef] bg-white transition hover:border-[#03c75a] hover:shadow-md"
+                                className="group overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--card)] transition hover:border-[var(--pine)] hover:shadow-md"
                               >
-                                <div className="aspect-square overflow-hidden bg-[#f7f8fa]">
+                                <div className="aspect-square overflow-hidden bg-[var(--paper)]">
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={p.image}
@@ -351,14 +426,16 @@ export default function Home() {
                                   />
                                 </div>
                                 <div className="p-2.5">
-                                  <p className="line-clamp-2 min-h-[2.4em] text-[12px] leading-snug text-[#333]">
+                                  <p className="line-clamp-2 min-h-[2.4em] text-[12px] leading-snug text-[var(--ink-2)]">
                                     {p.title}
                                   </p>
-                                  <p className="mt-1.5 text-[15px] font-bold text-[#191919]">
-                                    {p.price.toLocaleString()}
-                                    <span className="text-[12px] font-medium text-[#767676]"> 원</span>
+                                  <p className="mt-1.5 text-[var(--ink)]">
+                                    <span className="figure text-[16px] font-semibold">
+                                      {p.price.toLocaleString()}
+                                    </span>
+                                    <span className="text-[12px] text-[var(--ink-3)]"> 원</span>
                                   </p>
-                                  <p className="mt-0.5 truncate text-[11px] text-[#03c75a]">{p.mall}</p>
+                                  <p className="mt-0.5 truncate text-[11px] font-medium text-[var(--pine)]">{p.mall}</p>
                                 </div>
                               </a>
                             ))}
@@ -366,18 +443,16 @@ export default function Home() {
                         </div>
                       )}
 
-                      {/* 후속 액션 카드 */}
+                      {/* 후속 액션 */}
                       {i === messages.length - 1 && suggestions.length > 0 && !streaming && (
                         <div className="fade-in mt-3">
-                          <p className="mb-1.5 text-[12px] font-semibold text-[#767676]">
-                            이어서 물어보기
-                          </p>
+                          <p className="eyebrow mb-2">이어서 물어보기</p>
                           <div className="flex flex-wrap gap-2">
                             {suggestions.map((s) => (
                               <button
                                 key={s}
                                 onClick={() => send(s)}
-                                className="rounded-full border border-[#d3f0dd] bg-[#f2fcf6] px-3.5 py-1.5 text-[13px] text-[#02b350] transition hover:border-[#03c75a] hover:bg-[#e8f8ee]"
+                                className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3.5 py-1.5 text-[13px] text-[var(--ink-2)] transition hover:border-[var(--pine)] hover:bg-[var(--pine-tint)] hover:text-[var(--pine)]"
                               >
                                 {s}
                               </button>
@@ -395,7 +470,7 @@ export default function Home() {
         </main>
 
         {/* 입력창 */}
-        <div className="border-t border-[#eaecef] bg-white px-4 py-3">
+        <div className="border-t border-[var(--line)] bg-[var(--paper)] px-4 py-3">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -403,7 +478,7 @@ export default function Home() {
             }}
             className="mx-auto flex max-w-2xl items-end gap-2"
           >
-            <div className="flex flex-1 items-end rounded-2xl border border-[#dfe2e7] bg-[#f7f8fa] px-4 py-2 focus-within:border-[#03c75a] focus-within:bg-white">
+            <div className="flex flex-1 items-end rounded-2xl border border-[var(--line)] bg-[var(--card)] px-4 py-2 transition focus-within:border-[var(--pine)] focus-within:shadow-[0_0_0_3px_var(--pine-tint)]">
               <textarea
                 ref={taRef}
                 value={input}
@@ -422,104 +497,139 @@ export default function Home() {
                 }}
                 rows={1}
                 placeholder="예: 자취 시작하는데 20만원 이하 로봇청소기 추천해줘"
-                className="max-h-[120px] flex-1 resize-none bg-transparent py-1 text-[14px] outline-none placeholder:text-[#a0a4ab]"
+                className="max-h-[120px] flex-1 resize-none bg-transparent py-1 text-[14px] outline-none placeholder:text-[var(--ink-3)]"
                 disabled={streaming}
               />
             </div>
             <button
               type="submit"
               disabled={streaming || !input.trim()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#03c75a] text-white transition hover:bg-[#02b350] disabled:bg-[#c8ccd2]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--ink)] text-[var(--paper)] transition hover:bg-[var(--pine)] disabled:bg-[var(--line)] disabled:text-[var(--ink-3)]"
               aria-label="전송"
             >
               {streaming ? (
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
               ) : (
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M3.4 20.4L21 12 3.4 3.6 3.4 10.2 15 12 3.4 13.8z"
-                    fill="currentColor"
-                  />
+                  <path d="M3.4 20.4L21 12 3.4 3.6 3.4 10.2 15 12 3.4 13.8z" fill="currentColor" />
                 </svg>
               )}
             </button>
           </form>
-          <p className="mx-auto mt-1.5 max-w-2xl text-center text-[11px] text-[#a0a4ab]">
+          <p className="mx-auto mt-1.5 max-w-2xl text-center text-[11px] text-[var(--ink-3)]">
             상품 정보·법령은 실시간 검색 결과 기반입니다. 법령 안내는 일반 정보이며 법률 자문이 아닙니다.
           </p>
         </div>
       </div>
 
-      {/* 판단 과정 패널 */}
+      {/* 장부(worklog) — 컨시어지의 뒷창구 */}
       {showTrace && (
-        <aside className="hidden w-[320px] shrink-0 flex-col border-l border-[#eaecef] bg-white lg:flex">
-          <div className="flex items-center justify-between border-b border-[#eaecef] px-4 py-3">
+        <aside className="ledger hidden w-[340px] shrink-0 flex-col border-l border-[var(--ledger-line)] lg:flex">
+          <div className="flex items-center justify-between border-b border-[var(--ledger-line)] px-4 py-3">
             <div>
-              <h2 className="text-[13px] font-bold">에이전트 판단 과정</h2>
-              <p className="text-[11px] text-[#767676]">어떤 흐름으로 판단·행동했는지</p>
+              <h2 className="text-[13px] font-bold text-[var(--ledger-ink)]">작업 기록</h2>
+              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ledger-ink-2)]">
+                Worklog · 판단 · 도구 · 검증
+              </p>
             </div>
-            <button onClick={() => setShowTrace(false)} className="text-[#a0a4ab] hover:text-[#191919]">
+            <button
+              onClick={() => setShowTrace(false)}
+              className="text-[var(--ledger-ink-2)] transition hover:text-[var(--ledger-ink)]"
+              aria-label="작업 기록 닫기"
+            >
               ✕
             </button>
           </div>
           <div className="flex-1 space-y-2 overflow-y-auto p-3">
             {traces.length === 0 && (
-              <p className="px-1 pt-2 text-[12px] leading-relaxed text-[#a0a4ab]">
-                질문을 보내면 오케스트레이터의 판단, 전문 에이전트 위임, 도구 호출, 법령 그래프 탐색이
-                실시간으로 표시됩니다.
-              </p>
+              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                <div className="select-none font-serif text-[130px] leading-none text-[var(--ledger-ink)]/[0.055]">
+                  帳
+                </div>
+                <p className="ledger-entry mt-3 max-w-[240px] leading-relaxed text-[var(--ledger-ink-2)]">
+                  질문을 보내면 오케스트레이터의 판단 · 에이전트 위임 · 도구 호출 · 법령 그래프
+                  탐색 · 인용 검증이 순서대로 이곳에 기록됩니다.
+                </p>
+              </div>
             )}
             {traces.map((t, i) => {
               const meta = "agent" in t && t.agent ? AGENT_META[t.agent] : undefined;
               switch (t.kind) {
                 case "iteration":
                   return (
-                    <div key={i} className="px-1 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-[#b0b4bb]">
-                      오케스트레이터 · {t.n}회차
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 px-1 pt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ledger-ink-2)]"
+                    >
+                      <span className="h-px flex-1 bg-[var(--ledger-line)]" />
+                      Orchestrator · <span className="figure">{t.n}</span>회차
+                      <span className="h-px flex-1 bg-[var(--ledger-line)]" />
                     </div>
                   );
                 case "thinking":
                   return (
-                    <div key={i} className="rounded-lg bg-[#f7f8fa] p-2.5 text-[12px] leading-relaxed text-[#767676]">
-                      <span className="mb-1 block text-[11px] font-semibold text-[#a0a4ab]">💭 판단</span>
-                      {t.text}
+                    <div key={i} className="rounded-lg bg-[var(--ledger-2)] p-2.5">
+                      <span className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--ledger-ink-2)]">
+                        判斷 · 판단
+                      </span>
+                      <p className="text-[12px] leading-relaxed text-[var(--ledger-ink)]/85">{t.text}</p>
                     </div>
                   );
                 case "agent_start":
                   return (
-                    <div key={i} className="rounded-lg border p-2.5" style={{ borderColor: meta?.accent + "40", background: meta?.bg }}>
-                      <div className="text-[12px] font-bold" style={{ color: meta?.accent }}>
-                        {meta?.icon} {t.label} 시작
+                    <div
+                      key={i}
+                      className="rounded-lg border p-2.5"
+                      style={{ borderColor: meta?.line, background: meta?.bg }}
+                    >
+                      <div className="flex items-center gap-1.5 text-[12px] font-bold" style={{ color: meta?.accent }}>
+                        <span className="font-serif">{meta?.icon}</span> {t.label} 시작
                       </div>
-                      <p className="mt-1 line-clamp-3 text-[11px] text-[#767676]">위임: {t.task}</p>
+                      <p className="ledger-entry mt-1 line-clamp-3 text-[var(--ledger-ink-2)]">위임: {t.task}</p>
                     </div>
                   );
                 case "agent_done":
                   return (
-                    <div key={i} className="rounded-lg border p-2 text-[11px] font-semibold" style={{ borderColor: meta?.accent + "40", background: meta?.bg, color: meta?.accent }}>
-                      {meta?.icon} {t.label} 완료
-                      {t.usage ? ` · ${t.usage.input_tokens}/${t.usage.output_tokens} 토큰` : ""}
+                    <div
+                      key={i}
+                      className="flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-semibold"
+                      style={{ borderColor: meta?.line, background: meta?.bg, color: meta?.accent }}
+                    >
+                      <span className="font-serif">{meta?.icon}</span> {t.label} 완료
+                      {t.usage ? (
+                        <span className="ml-auto font-mono text-[10px] font-normal text-[var(--ledger-ink-2)]">
+                          <span className="figure">{t.usage.input_tokens}</span>/
+                          <span className="figure">{t.usage.output_tokens}</span> tok
+                        </span>
+                      ) : null}
                     </div>
                   );
                 case "verify_start":
                   return (
-                    <div key={i} className="ml-3 rounded-lg bg-amber-50 p-2 text-[11px] text-amber-700">
-                      🛡️ 인용 검증 중…
+                    <div key={i} className="ml-3 rounded-lg border border-[#8a6d2f]/40 bg-[#8a6d2f]/15 p-2 text-[11px] text-[#e0be7a]">
+                      🛡 인용 검증 중…
                     </div>
                   );
                 case "verify_result":
-                  return (
+                  return t.passed ? (
                     <div
                       key={i}
-                      className={`ml-3 rounded-lg border p-2.5 text-[12px] ${
-                        t.passed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"
-                      }`}
+                      className="ml-3 flex items-center gap-3 rounded-lg border border-[var(--ledger-line)] bg-[var(--ledger-2)] p-2.5"
                     >
-                      <span className="font-bold">
-                        {t.passed ? `🛡️ 인용 검증 통과 (${t.verdicts.length}건)` : "🛡️ 검증 실패 → 보고서 수정"}
-                      </span>
+                      <Seal size={46} uid={`v${i}`} stamp />
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-bold text-[var(--ledger-ink)]">인용 근거 검증 통과</p>
+                        <p className="font-mono text-[10.5px] text-[var(--ledger-ink-2)]">
+                          <span className="figure">{t.verdicts.length}</span>건 조문 대조 · 確認
+                          {t.revised ? " · 수정 반영" : ""}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={i} className="ml-3 rounded-lg border border-[#8a6d2f]/40 bg-[#8a6d2f]/15 p-2.5 text-[12px] text-[#e0be7a]">
+                      <span className="font-bold">🛡 검증 실패 → 보고서 수정</span>
                       {t.verdicts.some((v) => !v.supported) && (
-                        <ul className="mt-1 space-y-0.5 text-[11px]">
+                        <ul className="ledger-entry mt-1 space-y-0.5">
                           {t.verdicts.filter((v) => !v.supported).map((v, j) => (
                             <li key={j}>✘ {v.citation}: {v.reason}</li>
                           ))}
@@ -529,25 +639,27 @@ export default function Home() {
                   );
                 case "tool_use":
                   return (
-                    <div key={i} className="ml-3 rounded-lg border border-[#eaecef] bg-[#fbfcfd] p-2.5 text-[12px]">
-                      <span className="font-semibold text-[#4b4b4b]">🔧 {TOOL_LABELS[t.name] ?? t.name}</span>
-                      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-[10px] leading-relaxed text-[#767676]">
+                    <div key={i} className="ml-3 rounded-lg border border-[var(--ledger-line)] bg-[var(--ledger-2)] p-2.5">
+                      <span className="font-mono text-[11px] font-semibold text-[var(--ledger-ink)]">
+                        › {TOOL_LABELS[t.name] ?? t.name}
+                      </span>
+                      <pre className="ledger-entry mt-1 overflow-x-auto whitespace-pre-wrap text-[10px] text-[var(--ledger-ink-2)]">
                         {JSON.stringify(t.input, null, 1)}
                       </pre>
                     </div>
                   );
                 case "tool_result":
                   return (
-                    <div key={i} className="ml-3 rounded-lg border border-emerald-100 bg-emerald-50/60 p-2.5 text-[12px]">
-                      <span className="font-semibold text-emerald-700">✓ {t.summary}</span>
+                    <div key={i} className="ml-3 rounded-lg border border-[#7cc4a0]/25 bg-[#7cc4a0]/[0.08] p-2.5">
+                      <span className="text-[12px] font-semibold text-[#7cc4a0]">✓ {t.summary}</span>
                       {t.name === "search_law" && Array.isArray(t.result) && (
-                        <ul className="mt-1.5 space-y-0.5 text-[11px] text-emerald-800">
+                        <ul className="ledger-entry mt-1.5 space-y-0.5 text-[var(--ledger-ink)]/80">
                           {(t.result as { law: string; article: string; via: string }[]).map((a, j) => (
                             <li key={j}>
                               {a.via === "graph-expansion" ? "└→ " : "• "}
                               {a.article}
                               {a.via === "graph-expansion" && (
-                                <span className="text-emerald-500"> (그래프 확장)</span>
+                                <span className="text-[#7cc4a0]"> (그래프 확장)</span>
                               )}
                             </li>
                           ))}

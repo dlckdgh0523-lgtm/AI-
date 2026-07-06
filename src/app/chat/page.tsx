@@ -66,7 +66,16 @@ export default function ChatPage() {
   const [lang, setLang] = useState<Lang>("ko"); // UI + AI 답변 언어 (외국인 쇼퍼 대응)
   const bottomRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const stickBottom = useRef(true); // 사용자가 맨 아래에 있을 때만 자동 스크롤 (위로 스크롤 시 방해 안 함)
   const t = UI[lang];
+
+  // 스크롤 위치 추적: 맨 아래 근처면 stick, 위로 올리면 해제
+  function onScroll() {
+    const el = mainRef.current;
+    if (!el) return;
+    stickBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem("lang");
@@ -77,7 +86,8 @@ export default function ChatPage() {
   }, [lang]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    // 사용자가 맨 아래에 있을 때만 따라 내려감 — 위로 스크롤해 상품을 볼 땐 방해하지 않음
+    if (stickBottom.current) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, products, suggestions]);
 
   async function send(text: string) {
@@ -90,6 +100,7 @@ export default function ChatPage() {
     setInput("");
     setStreaming(true);
     setStatus(t.status.analyzing);
+    stickBottom.current = true; // 새 질문 전송 시엔 맨 아래로 따라감
 
     try {
       const res = await fetch("/api/chat", {
@@ -292,7 +303,7 @@ export default function ChatPage() {
         </header>
 
         {/* 본문 */}
-        <main className="flex-1 overflow-y-auto">
+        <main ref={mainRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
           {empty ? (
             <div className="mx-auto flex min-h-full max-w-2xl flex-col justify-center px-5 py-10">
               <div className="mb-9 text-center">

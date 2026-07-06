@@ -61,6 +61,7 @@ export default function ChatPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [status, setStatus] = useState(""); // 답변 전 현재 작업 상태 (채팅창 로딩 표시)
   const [showTrace, setShowTrace] = useState(true); // 판단 과정을 기본으로 옆에 표시
   const [lang, setLang] = useState<Lang>("ko"); // UI + AI 답변 언어 (외국인 쇼퍼 대응)
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -88,6 +89,7 @@ export default function ChatPage() {
     setProducts([]);
     setInput("");
     setStreaming(true);
+    setStatus(t.status.analyzing);
 
     try {
       const res = await fetch("/api/chat", {
@@ -128,6 +130,7 @@ export default function ChatPage() {
   function handleEvent(event: Record<string, unknown>) {
     switch (event.type) {
       case "text_delta":
+        setStatus(""); // 답변이 시작되면 로딩 상태 해제
         setMessages((prev) => {
           const next = [...prev];
           const last = next[next.length - 1];
@@ -151,6 +154,7 @@ export default function ChatPage() {
         setTraces((prev) => [...prev, { kind: "iteration", n: event.n as number }]);
         break;
       case "agent_start":
+        setStatus(t.status[(event.agent as string) === "shopping" ? "shoppingAgent" : "lawAgent"]);
         setTraces((prev) => [
           ...prev,
           { kind: "agent_start", agent: event.agent as string, label: event.label as string, task: event.task as string },
@@ -168,6 +172,7 @@ export default function ChatPage() {
         ]);
         break;
       case "verify_start":
+        setStatus(t.status.verify);
         setTraces((prev) => [...prev, { kind: "verify_start", agent: event.agent as string }]);
         break;
       case "verify_result":
@@ -182,12 +187,23 @@ export default function ChatPage() {
           },
         ]);
         break;
-      case "tool_use":
+      case "tool_use": {
+        const nm = event.name as string;
+        setStatus(
+          nm === "search_products"
+            ? t.status.shopping
+            : nm === "search_reviews"
+              ? t.status.reviews
+              : nm === "search_law"
+                ? t.status.law
+                : status
+        );
         setTraces((prev) => [
           ...prev,
           { kind: "tool_use", id: event.id as string, name: event.name as string, input: event.input, agent: event.agent as string | undefined },
         ]);
         break;
+      }
       case "tool_result":
         setTraces((prev) => [
           ...prev,
@@ -200,6 +216,7 @@ export default function ChatPage() {
             agent: event.agent as string | undefined,
           },
         ]);
+        setStatus(t.status.writing); // 검색 끝 → 답변 작성 단계
         if (event.name === "search_products" && Array.isArray(event.result)) {
           setProducts((prev) => {
             const seen = new Set(prev.map((p) => p.link));
@@ -356,8 +373,8 @@ export default function ChatPage() {
                             <span className="typing-dot" />
                             <span className="typing-dot" />
                             <span className="typing-dot" />
-                            <span className="ml-2 text-[13px] text-[var(--ink-3)]">
-                              {t.thinking}
+                            <span className="ml-2 text-[13px] text-[var(--ink-3)] transition-opacity">
+                              {status || t.thinking}
                             </span>
                           </div>
                         )}

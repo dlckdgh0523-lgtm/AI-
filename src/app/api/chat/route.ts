@@ -285,6 +285,8 @@ export async function POST(req: Request) {
           const msgStream = client.messages.stream({
             model: MODEL,
             max_tokens: 20000, // 비교표 등 긴 답변 잘림 방지 — Sonnet 5 토크나이저(동일 텍스트 ~30% 더 많은 토큰) 감안해 상향
+            // 단일 도메인 빠른 경로: 낮은 effort로 도구 선택·응답 지연 단축 (품질 유지 범위)
+            output_config: direct ? { effort: "low" } : undefined,
             thinking: { type: "adaptive", display: "summarized" },
             system: [
               {

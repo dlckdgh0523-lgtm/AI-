@@ -7,6 +7,8 @@
  * 실패 = HTTP 에러, 빈 응답, 크래시, 명백한 오작동(예: 관련 없는 답).
  */
 
+export {}; // 모듈 스코프 격리 (전역 main 충돌 방지)
+
 interface Case {
   name: string;
   question: string;

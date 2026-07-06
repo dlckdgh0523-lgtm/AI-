@@ -25,7 +25,29 @@ const ROUTE_SCHEMA = {
  * 단일 도메인은 오케스트레이션 왕복 없이 전문가가 직접 답해 레이턴시를 크게 줄인다.
  * (A/B 측정: 복합 질문에서 멀티는 단일 대비 품질 동률·레이턴시 2.6배 → 단일 도메인은 직접 경로가 옳다)
  */
+// 법령 쟁점 신호 (검색 없이 근거만 답하면 되는 주제)
+const LAW_RE =
+  /환불|청약\s*철회|철회|반품|교환|하자|불량|고장|보증|a\/?s|약관|면책|위약금|허위|과장|표시\s*광고|광고.*규제|소비자|분쟁|배송비.*(누가|부담)|개봉.*(반품|환불|철회)/i;
+// 상품을 실제로 찾아 추천/비교해야 하는 신호
+const SHOP_RE =
+  /추천|비교|골라|찾아|사려|살까|어떤\s*(거|게|걸|것)|뭐가\s*좋|가성비|저렴한|더\s*싼|얼마|가격|최저가로/i;
+
+/**
+ * 정규식 빠른 분류 — 신호가 명확하면 Haiku 호출(~2.7s)을 건너뛰어 TTFT를 줄인다.
+ * 애매하면 null을 반환해 Haiku 분류로 폴백한다.
+ */
+function fastRoute(q: string): Route | null {
+  const law = LAW_RE.test(q);
+  const shop = SHOP_RE.test(q);
+  if (shop && law) return "both";
+  if (shop) return "shopping";
+  if (law) return "law";
+  return null;
+}
+
 async function classifyRoute(question: string): Promise<Route> {
+  const fast = fastRoute(question);
+  if (fast) return fast; // 명확한 경우 즉시 결정 (분류 지연 0)
   try {
     const res = await client.messages.create({
       model: "claude-haiku-4-5",

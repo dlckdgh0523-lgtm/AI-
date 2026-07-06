@@ -34,7 +34,27 @@ const ChatRequestSchema = z.object({
     )
     .min(1)
     .max(24), // 멀티턴 상한 — 히스토리 무한 증가로 인한 비용 폭주 방지
+  lang: z.enum(["ko", "en"]).optional().default("ko"), // 답변 언어 (외국인 쇼퍼 대응)
 });
+
+/**
+ * 답변 언어 지시. 검색·조문 데이터는 한국어(네이버·법령)지만 최종 답변은 선택 언어로.
+ * 법령 인용은 정확성이 생명이라, 영어로 답하더라도 공식 법령명·조문번호는 유지한다.
+ */
+function langDirective(lang: "ko" | "en"): string {
+  if (lang === "en") {
+    return (
+      "\n\n## OUTPUT LANGUAGE\n" +
+      "Write your FINAL answer to the user in natural English (the user is a non-Korean shopper in Korea). " +
+      "Tool results (product names, review snippets, law articles) are in Korean — read them as-is, but explain in English. " +
+      "Keep Korean product names in their original form (add a short English gloss if helpful). " +
+      "For law citations, keep the official reference intact and add an English translation of the act name, " +
+      "e.g. \"전자상거래법(Act on Consumer Protection in Electronic Commerce) Article 17\". Never invent article numbers. " +
+      "Keep tables and markdown structure."
+    );
+  }
+  return "";
+}
 
 const FOLLOWUP_SCHEMA = {
   type: "object" as const,
@@ -56,7 +76,8 @@ const FOLLOWUP_SCHEMA = {
 async function generateFollowups(
   question: string,
   answer: string,
-  hasProducts: boolean
+  hasProducts: boolean,
+  lang: "ko" | "en" = "ko"
 ): Promise<string[]> {
   const guide = hasProducts
     ? "직전 답변이 상품을 추천했습니다. 사용자가 검색을 좁히거나 바꿀 수 있는 '재검색 액션'을 제안하세요. " +
@@ -72,7 +93,10 @@ async function generateFollowups(
       "당신은 쇼핑·소비자권리 상담의 후속 액션을 제안하는 도우미입니다. " +
       "짧은 문장 3개를 생성하세요. 각 20자 내외, 사용자 1인칭 말투, 서로 다른 축을 다룹니다. " +
       "답변에 이미 다 나온 내용은 피합니다.\n" +
-      guide,
+      guide +
+      (lang === "en"
+        ? "\nWrite the 3 follow-up suggestions in natural English, first-person (e.g. 'Show me cheaper options', 'Can I return it after opening?'), under ~40 chars each."
+        : ""),
     messages: [
       { role: "user", content: `[사용자 질문]\n${question}\n\n[답변 요약]\n${answer.slice(0, 1500)}` },
     ],
@@ -125,6 +149,7 @@ export async function POST(req: Request) {
     );
   }
   const history: Anthropic.MessageParam[] = parsed.data.messages;
+  const lang = parsed.data.lang;
   if (history[history.length - 1].role !== "user") {
     return Response.json({ error: "마지막 메시지는 사용자 메시지여야 합니다." }, { status: 400 });
   }
@@ -178,9 +203,10 @@ export async function POST(req: Request) {
             system: [
               {
                 type: "text",
-                text: ORCHESTRATOR_SYSTEM,
+                text: ORCHESTRATOR_SYSTEM, // 캐시 가능한 고정 프리픽스 (언어 지시는 뒤에 분리)
                 cache_control: { type: "ephemeral" },
               },
+              ...(lang === "en" ? [{ type: "text" as const, text: langDirective(lang) }] : []),
             ],
             tools: ORCHESTRATOR_TOOLS,
             messages,
@@ -258,7 +284,7 @@ export async function POST(req: Request) {
                   t !== null &&
                   (t as { name?: string }).name === "search_products"
               );
-              const suggestions = await generateFollowups(userQuestion, answerText, hasProducts);
+              const suggestions = await generateFollowups(userQuestion, answerText, hasProducts, lang);
               if (suggestions.length) send({ type: "suggestions", items: suggestions });
             } catch { /* 유도질문 생성 실패는 무시 */ }
 

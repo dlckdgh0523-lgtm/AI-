@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Seal } from "@/components/brand";
+import { UI, type Lang } from "@/lib/i18n";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -47,39 +48,9 @@ const AGENT_META: Record<string, { icon: string; accent: string; line: string; b
   law: { icon: "法", accent: "#e5806f", line: "rgba(229,128,111,0.34)", bg: "rgba(229,128,111,0.10)" },
 };
 
-const EXAMPLE_GROUPS: {
-  hanja: string;
-  world: string;
-  accent: string;
-  tint: string;
-  label: string;
-  desc: string;
-  items: string[];
-}[] = [
-  {
-    hanja: "商",
-    world: "상품 창구",
-    accent: "var(--pine)",
-    tint: "var(--pine-tint)",
-    label: "상품 추천 · 비교",
-    desc: "상황을 말하면 조건에 맞는 상품을 찾아 비교해 드려요.",
-    items: [
-      "장마철 원룸에서 쓸 제습기 10만원 이하로 추천해줘",
-      "캠핑용 버너 2개만 비교해서 추천해줘",
-    ],
-  },
-  {
-    hanja: "法",
-    world: "권리 창구",
-    accent: "var(--seal)",
-    tint: "var(--seal-tint)",
-    label: "소비자 권리 · 법령",
-    desc: "환불·교환·광고 규제를 실제 법 조문 근거로 안내해요.",
-    items: [
-      "온라인에서 산 노트북 개봉했는데 환불 가능해?",
-      "'전국 최저가 보장'이라고 광고 문구 써도 돼?",
-    ],
-  },
+const GROUP_STYLE = [
+  { accent: "var(--pine)", tint: "var(--pine-tint)" },
+  { accent: "var(--seal)", tint: "var(--seal-tint)" },
 ];
 
 export default function ChatPage() {
@@ -90,8 +61,18 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [showTrace, setShowTrace] = useState(true); // 판단 과정을 기본으로 옆에 표시
+  const [lang, setLang] = useState<Lang>("ko"); // UI + AI 답변 언어 (외국인 쇼퍼 대응)
   const bottomRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const t = UI[lang];
+
+  useEffect(() => {
+    const saved = localStorage.getItem("lang");
+    if (saved === "en" || saved === "ko") setLang(saved);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("lang", lang);
+  }, [lang]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -111,9 +92,9 @@ export default function ChatPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({ messages: history, lang }),
       });
-      if (!res.ok || !res.body) throw new Error(`요청 실패: ${res.status}`);
+      if (!res.ok || !res.body) throw new Error(`request failed: ${res.status}`);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -134,7 +115,7 @@ export default function ChatPage() {
         const next = [...prev];
         next[next.length - 1] = {
           role: "assistant",
-          content: `⚠️ 오류가 발생했습니다: ${e instanceof Error ? e.message : e}`,
+          content: `${t.errorPrefix}${e instanceof Error ? e.message : e}`,
         };
         return next;
       });
@@ -249,6 +230,21 @@ export default function ChatPage() {
             </div>
           </div>
           <nav className="flex items-center gap-1">
+            {/* 한/영 전환 — UI와 AI 답변 언어를 함께 전환 */}
+            <div className="mr-1 flex items-center rounded-lg border border-[var(--line)] p-0.5 text-[12px] font-semibold">
+              {(["ko", "en"] as const).map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setLang(l)}
+                  aria-pressed={lang === l}
+                  className={`rounded-md px-2 py-1 transition ${
+                    lang === l ? "bg-[var(--ink)] text-[var(--paper)]" : "text-[var(--ink-3)] hover:text-[var(--ink)]"
+                  }`}
+                >
+                  {l === "ko" ? "한국어" : "EN"}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => setShowTrace((v) => !v)}
               className={`rounded-lg px-3 py-1.5 text-[13px] font-medium transition ${
@@ -257,19 +253,19 @@ export default function ChatPage() {
                   : "text-[var(--ink-2)] hover:bg-[var(--paper-2)]"
               }`}
             >
-              작업 기록{showTrace ? " ·" : ""}
+              {t.worklog}{showTrace ? " ·" : ""}
             </button>
             <a
               href="/admin"
               className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[var(--ink-2)] transition hover:bg-[var(--paper-2)]"
             >
-              대시보드
+              {t.dashboard}
             </a>
             <a
               href="/"
               className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[var(--ink-2)] transition hover:bg-[var(--paper-2)]"
             >
-              소개
+              {t.about}
             </a>
           </nav>
         </header>
@@ -282,27 +278,26 @@ export default function ChatPage() {
                 <div className="mb-5 flex justify-center">
                   <Seal size={104} uid="hero" stamp />
                 </div>
-                <p className="eyebrow mb-3">AI 커머스 에이전트 · GraphRAG</p>
+                <p className="eyebrow mb-3">{t.eyebrow}</p>
                 <h1 className="text-[30px] font-bold leading-[1.15] tracking-[-0.03em] text-[var(--ink)]">
-                  사는 것부터,<br />지키는 것까지.
+                  {t.heroLine1}<br />{t.heroLine2}
                 </h1>
                 <p className="mx-auto mt-4 max-w-md text-[14px] leading-relaxed text-[var(--ink-3)]">
-                  필요한 상품을 찾아 비교해 드리고, 소비자 권리는 실제 법 조문을 근거로
-                  안내합니다. 모든 답변의 인용은 <span className="text-[var(--seal-deep)]">검증</span>을 거칩니다.
+                  {t.heroDesc}
                 </p>
               </div>
               <div className="grid gap-3.5 sm:grid-cols-2">
-                {EXAMPLE_GROUPS.map((g) => (
+                {t.groups.map((g, gi) => (
                   <div
                     key={g.label}
                     className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-[0_1px_2px_rgba(33,29,24,0.04)]"
                   >
-                    <div className="h-[3px] w-full" style={{ background: g.accent }} />
+                    <div className="h-[3px] w-full" style={{ background: GROUP_STYLE[gi].accent }} />
                     <div className="p-4">
                       <div className="mb-1 flex items-center gap-2">
                         <span
                           className="flex h-6 w-6 items-center justify-center rounded-md font-serif text-[13px] font-semibold text-white"
-                          style={{ background: g.accent }}
+                          style={{ background: GROUP_STYLE[gi].accent }}
                         >
                           {g.hanja}
                         </span>
@@ -318,7 +313,7 @@ export default function ChatPage() {
                           >
                             <span
                               className="mt-[6px] h-[5px] w-[5px] shrink-0 rotate-45 rounded-[1px] opacity-70 transition group-hover:opacity-100"
-                              style={{ background: g.accent }}
+                              style={{ background: GROUP_STYLE[gi].accent }}
                             />
                             {ex}
                           </button>
@@ -358,7 +353,7 @@ export default function ChatPage() {
                             <span className="typing-dot" />
                             <span className="typing-dot" />
                             <span className="ml-2 text-[13px] text-[var(--ink-3)]">
-                              컨시어지가 근거를 찾고 있어요
+                              {t.thinking}
                             </span>
                           </div>
                         )}
@@ -369,7 +364,7 @@ export default function ChatPage() {
                         <div className="fade-in mt-3">
                           <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-[var(--ink-3)]">
                             <span className="h-[6px] w-[6px] rotate-45 rounded-[1px] bg-[var(--pine)]" />
-                            네이버 쇼핑 검색 결과 <span className="figure text-[var(--ink-2)]">{products.length}</span>개
+                            {t.naverResults} <span className="figure text-[var(--ink-2)]">{products.length}</span>{t.unit}
                           </p>
                           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                             {products.slice(0, 9).map((p) => (
@@ -410,7 +405,7 @@ export default function ChatPage() {
                       {/* 후속 액션 */}
                       {i === messages.length - 1 && suggestions.length > 0 && !streaming && (
                         <div className="fade-in mt-3">
-                          <p className="eyebrow mb-2">이어서 물어보기</p>
+                          <p className="eyebrow mb-2">{t.followupTitle}</p>
                           <div className="flex flex-wrap gap-2">
                             {suggestions.map((s) => (
                               <button
@@ -460,7 +455,7 @@ export default function ChatPage() {
                   }
                 }}
                 rows={1}
-                placeholder="예: 자취 시작하는데 20만원 이하 로봇청소기 추천해줘"
+                placeholder={t.placeholder}
                 className="max-h-[120px] flex-1 resize-none bg-transparent py-1 text-[14px] outline-none placeholder:text-[var(--ink-3)]"
                 disabled={streaming}
               />
@@ -481,7 +476,7 @@ export default function ChatPage() {
             </button>
           </form>
           <p className="mx-auto mt-1.5 max-w-2xl text-center text-[11px] text-[var(--ink-3)]">
-            상품 정보·법령은 실시간 검색 결과 기반입니다. 법령 안내는 일반 정보이며 법률 자문이 아닙니다.
+            {t.disclaimer}
           </p>
         </div>
       </div>

@@ -14,6 +14,7 @@ config({ path: ".env.local" });
 import { searchLaw, fetchLawBody, parseArticles } from "../src/lib/law-api";
 import { embedDocuments, EMBEDDING_DIM } from "../src/lib/embeddings";
 import { runQuery, closeDriver } from "../src/lib/neo4j";
+import { clearCache } from "../src/lib/semantic-cache";
 
 // 수집 대상: 커머스 소비자보호 관련 핵심 법령
 const TARGET_LAWS = [
@@ -52,7 +53,7 @@ async function ingestLaw(lawName: string) {
   const results = await searchLaw(lawName);
   // 법령명이 정확히 일치하는 현행 법령 선택 (없으면 첫 결과)
   const match =
-    results.find((r: any) => String(r?.법령명한글).trim() === lawName) ?? results[0];
+    results.find((r) => String(r?.법령명한글).trim() === lawName) ?? results[0];
   const mst = String(match?.법령일련번호 ?? match?.MST);
   console.log(`  MST=${mst}, 시행일=${match?.시행일자}`);
 
@@ -130,6 +131,9 @@ async function main() {
   for (const law of TARGET_LAWS) {
     await ingestLaw(law);
   }
+  // 법령이 갱신됐으므로 의미 캐시를 전부 무효화 — 개정 전 법령 기준 답변이 재사용되지 않게
+  await clearCache();
+  console.log("✔ 의미 캐시 무효화 완료 (법령 갱신 반영)");
   const [stats] = await runQuery<{ laws: unknown; articles: unknown; refs: unknown }>(
     `MATCH (l:Law) WITH count(l) AS laws
      MATCH (a:Article) WITH laws, count(a) AS articles

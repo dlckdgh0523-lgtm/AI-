@@ -8,7 +8,10 @@ const client = new Anthropic();
 // 오케스트레이터(판단·합성, route.ts)는 고성능 Opus, 서브 에이전트(조사)는 저비용 Haiku로 분리.
 // 조사 작업은 도구 호출·요약 위주라 Haiku로 충분하며, 이것이 토큰 비용의 주요 절감 레버다.
 const SUB_AGENT_MODEL = "claude-haiku-4-5";
-const SUB_AGENT_MAX_ITERATIONS = 3;
+// 도구 호출 2~3회 + 길이 제한 시 이어쓰기 1회 여유
+const SUB_AGENT_MAX_ITERATIONS = 4;
+// 법령 보고서는 조문 원문 인용이 길다 — 4096에서 잘리는 사례가 있어 상향 (Haiku 출력 상한 64K)
+const SUB_AGENT_MAX_TOKENS = 8192;
 
 /** 트레이스 이벤트 방출 콜백 (SSE로 전달됨) */
 export type TraceEmitter = (event: Record<string, unknown>) => void;
@@ -140,12 +143,14 @@ export async function runSubAgent(
   let inputTokens = 0;
   let outputTokens = 0;
   const retrievedLaw: RetrievedArticle[] = [];
+  // 길이 제한(max_tokens)으로 중단된 앞부분 — 이어쓰기 후 합친다
+  const partialReport: string[] = [];
 
   for (let i = 0; i < SUB_AGENT_MAX_ITERATIONS; i++) {
     // Haiku 4.5는 effort/adaptive thinking을 지원하지 않으므로 plain tool use로 실행
     const response = await client.messages.create({
       model: SUB_AGENT_MODEL,
-      max_tokens: 4096,
+      max_tokens: SUB_AGENT_MAX_TOKENS,
       system: [
         { type: "text", text: spec.system, cache_control: { type: "ephemeral" } },
       ],
@@ -155,13 +160,27 @@ export async function runSubAgent(
     inputTokens += response.usage.input_tokens;
     outputTokens += response.usage.output_tokens;
 
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("\n");
+
+    // 길이 제한으로 잘림 — 잘린 보고서를 그대로 반환하지 말고 이어쓰기를 요청
+    if (response.stop_reason === "max_tokens") {
+      partialReport.push(text);
+      messages.push({ role: "assistant", content: response.content });
+      messages.push({
+        role: "user",
+        content:
+          "보고서가 길이 제한으로 중단되었습니다. 이미 작성한 내용은 반복하지 말고, " +
+          "중단된 지점부터 자연스럽게 이어서 보고서를 완성하세요.",
+      });
+      continue;
+    }
+
     if (response.stop_reason !== "tool_use") {
-      const report = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("\n");
       return {
-        report,
+        report: [...partialReport, text].join(""),
         usage: { input_tokens: inputTokens, output_tokens: outputTokens },
         iterations: i + 1,
         retrievedLaw,
@@ -214,7 +233,10 @@ export async function runSubAgent(
   }
 
   return {
-    report: "(반복 한도 초과로 조사를 완료하지 못했습니다)",
+    // 이어쓰기까지 소진했으면 확보한 부분 보고서라도 전달 (없으면 실패 고지)
+    report: partialReport.length
+      ? partialReport.join("") + "\n\n(보고서 뒷부분이 길이 제한으로 생략되었습니다)"
+      : "(반복 한도 초과로 조사를 완료하지 못했습니다)",
     usage: { input_tokens: inputTokens, output_tokens: outputTokens },
     iterations: SUB_AGENT_MAX_ITERATIONS,
     retrievedLaw,
@@ -234,15 +256,19 @@ export async function executeDelegation(
   input: Record<string, unknown>,
   emit: TraceEmitter,
   userQuestion?: string
-): Promise<{ report: string; usage: SubAgentResult["usage"] }> {
+): Promise<{ report: string; usage: SubAgentResult["usage"]; retrievedLaw: RetrievedArticle[] }> {
   const agentKey = toolName === "delegate_shopping" ? "shopping" : "law";
   const task = String(input.task ?? "");
   const spec = SUB_AGENTS[agentKey];
 
   // 법률 위임: 사용자 원 질문 기반 의미 캐시 조회
+  // 캐시에는 보고서와 함께 당시 검색된 조문 집합(retrievedLaw)을 저장해,
+  // 캐시 히트 경로에서도 최종 답변 인용 검증이 가능하게 한다.
   let cachedQueryVec: number[] | undefined;
   if (agentKey === "law" && userQuestion) {
-    const cached = await cacheLookup<{ report: string }>(userQuestion);
+    const cached = await cacheLookup<{ report: string; retrievedLaw?: RetrievedArticle[] }>(
+      userQuestion
+    );
     cachedQueryVec = cached.queryVec;
     if (cached.hit && cached.result) {
       emit({
@@ -258,7 +284,11 @@ export async function executeDelegation(
         iterations: 0,
         usage: { input_tokens: 0, output_tokens: 0 },
       });
-      return { report: cached.result.report, usage: { input_tokens: 0, output_tokens: 0 } };
+      return {
+        report: cached.result.report,
+        usage: { input_tokens: 0, output_tokens: 0 },
+        retrievedLaw: cached.result.retrievedLaw ?? [],
+      };
     }
   }
 
@@ -294,8 +324,9 @@ export async function executeDelegation(
   }
 
   // 법률 보고서를 사용자 원 질문 키로 캐시 저장 (조회 때 계산한 임베딩 재사용)
+  // 검증(revise 포함)을 거친 최종 보고서 + 검색 조문 집합을 함께 저장
   if (agentKey === "law" && userQuestion && cachedQueryVec) {
-    await cacheStore(userQuestion, cachedQueryVec, { report });
+    await cacheStore(userQuestion, cachedQueryVec, { report, retrievedLaw: result.retrievedLaw });
   }
 
   emit({
@@ -305,5 +336,5 @@ export async function executeDelegation(
     iterations: result.iterations,
     usage: result.usage,
   });
-  return { report, usage: result.usage };
+  return { report, usage: result.usage, retrievedLaw: result.retrievedLaw };
 }

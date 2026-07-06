@@ -1,16 +1,40 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
 import {
   ORCHESTRATOR_TOOLS,
   ORCHESTRATOR_SYSTEM,
   executeDelegation,
 } from "@/lib/agents";
 import { logConversation } from "@/lib/supabase";
+import { checkRateLimit, clientIp } from "@/lib/ratelimit";
+import { extractCitations, checkCitationsExist, RetrievedArticle } from "@/lib/verify";
 
 export const maxDuration = 300;
 
 const client = new Anthropic();
-const MODEL = "claude-opus-4-8";
-const MAX_ITERATIONS = 6;
+// 오케스트레이터: Opus 4.8 → Sonnet 5 다운시프트.
+// 합성(보고서 통합·표 작성)은 Sonnet 5로 충분하고, 입력 $5→$3 / 출력 $25→$15로
+// 오케스트레이터 비용 ~40% 절감. 서브에이전트는 기존대로 Haiku 4.5 (agents.ts).
+const MODEL = "claude-sonnet-5";
+// 위임 루프 + 길이 제한 이어쓰기가 같은 카운터를 쓰므로 여유를 둔다
+const MAX_ITERATIONS = 8;
+
+/**
+ * 요청 바디 검증 — /api/chat은 공개 엔드포인트라 messages를 신뢰할 수 없다.
+ * 도구 입력에만 zod를 쓰고 API 경계를 비워두면, 위조된 assistant 턴이나
+ * 초장문 히스토리(입력 토큰 폭탄)가 그대로 모델에 들어간다.
+ */
+const ChatRequestSchema = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().min(1).max(4000), // 클라이언트는 문자열 콘텐츠만 보낸다
+      })
+    )
+    .min(1)
+    .max(24), // 멀티턴 상한 — 히스토리 무한 증가로 인한 비용 폭주 방지
+});
 
 const FOLLOWUP_SCHEMA = {
   type: "object" as const,
@@ -76,9 +100,34 @@ async function generateFollowups(
  *   {type:"done", usage} / {type:"error", message}
  */
 export async function POST(req: Request) {
-  const { messages: history } = (await req.json()) as {
-    messages: Anthropic.MessageParam[];
-  };
+  // 1) 레이트리밋 — 요청당 LLM 비용이 발생하므로 IP당 호출 횟수를 제한 (지갑 고갈 방어)
+  const ip = clientIp(req);
+  const limit = checkRateLimit(ip);
+  if (!limit.allowed) {
+    return Response.json(
+      { error: "요청이 너무 잦습니다. 잠시 후 다시 시도해주세요." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec ?? 60) } }
+    );
+  }
+
+  // 2) 입력 검증 — 역할·길이·턴 수를 스키마로 강제
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "잘못된 JSON 요청입니다." }, { status: 400 });
+  }
+  const parsed = ChatRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json(
+      { error: "잘못된 요청 형식입니다.", detail: parsed.error.issues.map((i) => i.message) },
+      { status: 400 }
+    );
+  }
+  const history: Anthropic.MessageParam[] = parsed.data.messages;
+  if (history[history.length - 1].role !== "user") {
+    return Response.json({ error: "마지막 메시지는 사용자 메시지여야 합니다." }, { status: 400 });
+  }
 
   const encoder = new TextEncoder();
 
@@ -98,12 +147,15 @@ export async function POST(req: Request) {
       let totalInputTokens = 0;
       let totalOutputTokens = 0;
       let answerText = "";
+      // 이번 대화 턴에서 법령 그래프가 실제 반환한 조문 집합 — 최종 합성 답변 검증에 사용
+      const retrievedLaw: RetrievedArticle[] = [];
       const traceLog: unknown[] = [];
       const emit = (event: Record<string, unknown>) => {
         if (
           event.type === "agent_start" ||
           event.type === "agent_done" ||
           event.type === "verify_result" ||
+          event.type === "final_citation_check" ||
           event.type === "cache_hit"
         ) {
           traceLog.push(event);
@@ -121,7 +173,7 @@ export async function POST(req: Request) {
 
           const msgStream = client.messages.stream({
             model: MODEL,
-            max_tokens: 16000, // 비교표 등 긴 최종 답변이 잘리지 않도록 상향
+            max_tokens: 20000, // 비교표 등 긴 답변 잘림 방지 — Sonnet 5 토크나이저(동일 텍스트 ~30% 더 많은 토큰) 감안해 상향
             thinking: { type: "adaptive", display: "summarized" },
             system: [
               {
@@ -149,12 +201,55 @@ export async function POST(req: Request) {
           totalInputTokens += response.usage.input_tokens;
           totalOutputTokens += response.usage.output_tokens;
 
+          // 길이 제한(max_tokens)으로 답변이 중간에 끊긴 경우 — 잘린 답을 최종본으로
+          // 내보내지 않고 이어쓰기를 요청한다. 법령 답변은 조문 인용 + 비교표가 길어
+          // adaptive thinking 토큰까지 합치면 상한에 닿는 경우가 있다.
+          if (response.stop_reason === "max_tokens") {
+            send({ type: "continuation", n: iteration + 1 });
+            messages.push({ role: "assistant", content: response.content });
+            messages.push({
+              role: "user",
+              content:
+                "(시스템) 직전 응답이 길이 제한으로 중단되었습니다. 이미 출력한 내용은 " +
+                "반복하지 말고, 중단된 지점부터 자연스럽게 이어서 답변을 완성하세요.",
+            });
+            continue;
+          }
+
           if (response.stop_reason !== "tool_use") {
             const usage = {
               input_tokens: totalInputTokens,
               output_tokens: totalOutputTokens,
               cache_read: response.usage.cache_read_input_tokens ?? 0,
             };
+
+            // 최종 합성 답변 인용 검증 (결정론적, LLM 비용 0)
+            // 법률 보고서는 서브에이전트 단계에서 검증되지만, 오케스트레이터가 합성 중
+            // 조문 번호를 바꾸거나 지어내면 그 부분은 검증 밖이었다. 최종 답변의 모든
+            // "○○법 제N조" 인용을 이번 턴에 실제 검색된 조문 집합과 대조한다.
+            if (retrievedLaw.length > 0) {
+              try {
+                const citations = extractCitations(answerText);
+                if (citations.length > 0) {
+                  const verdicts = checkCitationsExist(citations, retrievedLaw);
+                  const failures = verdicts.filter((v) => !v.supported);
+                  emit({
+                    type: "final_citation_check",
+                    passed: failures.length === 0,
+                    verdicts,
+                  });
+                  if (failures.length > 0) {
+                    // 이미 스트리밍된 본문은 수정 불가 — 정직하게 각주로 정정 고지
+                    const note =
+                      `\n\n> ⚠️ **인용 확인**: 아래 조문은 이번 조사에서 검색된 법령에서 확인되지 않았습니다. ` +
+                      `해당 부분은 재확인이 필요합니다: ${failures.map((f) => f.citation).join(", ")}`;
+                    answerText += note;
+                    send({ type: "text_delta", text: note });
+                  }
+                }
+              } catch { /* 최종 검증 실패는 답변 전달을 막지 않는다 */ }
+            }
+
             // 후속 유도질문/재검색 액션 생성 (저비용 Haiku, 실패해도 무시)
             try {
               const hasProducts = traceLog.some(
@@ -182,7 +277,7 @@ export async function POST(req: Request) {
           const toolResults = await Promise.all(
             toolUses.map(async (tu): Promise<Anthropic.ToolResultBlockParam> => {
               try {
-                const { report, usage } = await executeDelegation(
+                const { report, usage, retrievedLaw: lawArticles } = await executeDelegation(
                   tu.name,
                   tu.input as Record<string, unknown>,
                   emit,
@@ -190,6 +285,11 @@ export async function POST(req: Request) {
                 );
                 totalInputTokens += usage.input_tokens;
                 totalOutputTokens += usage.output_tokens;
+                for (const a of lawArticles) {
+                  if (!retrievedLaw.some((r) => r.law === a.law && r.article === a.article)) {
+                    retrievedLaw.push(a);
+                  }
+                }
                 return {
                   type: "tool_result",
                   tool_use_id: tu.id,

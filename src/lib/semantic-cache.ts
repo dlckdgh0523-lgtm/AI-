@@ -19,6 +19,10 @@ import { EMBEDDING_DIM } from "./embeddings";
 //   다른 질문에 잘못된 캐시를 주는 false hit를 막는다. 법률 도메인이라 보수적으로 잡음.
 const SIMILARITY_THRESHOLD = 0.88;
 
+// 캐시 TTL: 법령은 자주 바뀌지 않지만 개정될 수 있다. TTL + ingest 시 전체 무효화(clearCache)의
+// 2중 장치로 "개정 전 법령 기준의 답변이 영구히 재사용되는" 문제를 막는다.
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7일
+
 export async function setupCacheIndex() {
   await runQuery(
     `CREATE VECTOR INDEX cached_query_embedding IF NOT EXISTS
@@ -37,7 +41,7 @@ export interface CacheHit<T> {
   cachedQuestion?: string;
 }
 
-/** 캐시 조회 — 임베딩 유사도 임계값 이상인 이전 질문이 있으면 결과 반환 */
+/** 캐시 조회 — 임베딩 유사도 임계값 이상 + TTL 이내인 이전 질문이 있으면 결과 반환 */
 export async function cacheLookup<T>(question: string): Promise<CacheHit<T> & { queryVec: number[] }> {
   const queryVec = await embedQuery(question);
   const rows = await runQuery<{
@@ -45,15 +49,30 @@ export async function cacheLookup<T>(question: string): Promise<CacheHit<T> & { 
     resultJson: string;
     score: number;
     id: string;
+    createdAt: number | { low: number; high: number } | null;
   }>(
     `CALL db.index.vector.queryNodes('cached_query_embedding', 1, $vec)
      YIELD node, score
-     RETURN node.text AS text, node.resultJson AS resultJson, score, elementId(node) AS id`,
+     RETURN node.text AS text, node.resultJson AS resultJson, score, elementId(node) AS id,
+            node.createdAt AS createdAt`,
     { vec: queryVec }
   );
 
   const top = rows[0];
   if (top && top.score >= SIMILARITY_THRESHOLD) {
+    // TTL 검사 — createdAt이 없는 구형 엔트리는 만료로 간주해 폐기
+    const createdAt =
+      typeof top.createdAt === "number"
+        ? top.createdAt
+        : top.createdAt
+          ? top.createdAt.low + top.createdAt.high * 2 ** 32
+          : 0;
+    if (Date.now() - createdAt > CACHE_TTL_MS) {
+      await runQuery(`MATCH (q:CachedQuery) WHERE elementId(q) = $id DETACH DELETE q`, {
+        id: top.id,
+      });
+      return { hit: false, queryVec };
+    }
     // 히트 카운트 증가 (관측용)
     await runQuery(
       `MATCH (q:CachedQuery) WHERE elementId(q) = $id SET q.hitCount = coalesce(q.hitCount, 0) + 1`,
@@ -77,8 +96,13 @@ export async function cacheStore(
   result: unknown
 ): Promise<void> {
   await runQuery(
-    `CREATE (q:CachedQuery {text: $text, resultJson: $json, hitCount: 0})
+    `CREATE (q:CachedQuery {text: $text, resultJson: $json, hitCount: 0, createdAt: timestamp()})
      WITH q CALL db.create.setNodeVectorProperty(q, 'embedding', $vec)`,
     { text: question, json: JSON.stringify(result), vec: queryVec }
   );
+}
+
+/** 캐시 전체 무효화 — 법령 재수집(ingest) 시 호출해 개정 전 법령 기준 답변을 제거 */
+export async function clearCache(): Promise<void> {
+  await runQuery(`MATCH (q:CachedQuery) DETACH DELETE q`);
 }

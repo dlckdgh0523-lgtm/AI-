@@ -106,15 +106,42 @@ Supabase (대화 로그) ──▶ /admin 커머스 인텔리전스 대시보드
 | 프롬프트 캐싱 | 시스템 프롬프트+도구 정의를 캐싱해 매 루프 입력 비용 ~90% 절감 (대시보드에서 cache_read 확인 가능) |
 | SSE 스트리밍 | 텍스트·사고과정·도구 호출을 이벤트 단위로 실시간 전달 |
 
-## 4. 실행 방법
+## 4. 실행·재현
 
 ```bash
 npm install
-cp .env.example .env.local   # 키 입력 (Neo4j, 법령API OC, 네이버, Anthropic, Voyage, Supabase)
+cp .env.example .env.local   # 키 입력 (Anthropic, Voyage, Neo4j, 법령 OC, 네이버, Supabase)
 npm run ingest               # 법령 수집 → 그래프 구축 → 임베딩 (1회)
 npm run dev                  # http://localhost:3000
-npm run eval                 # 벡터 vs GraphRAG 비교 실험 재현
 ```
+
+**모든 수치는 스크립트로 재현 가능** (측정이 곧 주장의 근거):
+
+| 명령 | 무엇을 측정/검증 | 산출물 |
+|---|---|---|
+| `npm run eval` | 벡터 단독 vs GraphRAG 검색 품질 | [eval-results.md](./eval-results.md) |
+| `npm run ab` | 단일 vs 멀티 에이전트 (품질·토큰·레이턴시) | [ab-results.md](./ab-results.md) |
+| `npm run robust` | 강건성 8종(모호·장문·인젝션·없는조문·PII·다국어) | [robustness-results.md](./robustness-results.md) |
+| `npm run redteam` | 프롬프트 인젝션 방어 OFF/ON | [redteam-results.md](./redteam-results.md) |
+| `npm run bench` | 모델 다운시프트·캐시 비용 절감 | 콘솔 |
+| `npm run test-pii` / `test-redelegate` | PII 마스킹 / 재검색 재위임 회귀 | 콘솔 |
+
+**배포 시 필수 환경변수** — 하나라도 빠지면 해당 기능이 조용히 실패하므로(예: `VOYAGE_API_KEY` 누락 → 법령 검색 401), 배포 호스트에 전부 설정한다. 도구 오류는 작업기록에 노출되어 진단 가능하다.
+
+| 키 | 없으면 |
+|---|---|
+| `ANTHROPIC_API_KEY` | 전체 에이전트 동작 불가 |
+| `VOYAGE_API_KEY` | 법령 검색(임베딩) 401 실패 |
+| `NEO4J_URI/USERNAME/PASSWORD/DATABASE` | 법령 그래프 조회 불가 |
+| `NAVER_CLIENT_ID/SECRET` | 상품·후기 검색 불가 |
+| `LAW_API_OC` | 법령 재수집(ingest) 불가 |
+| `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY` | 대화 로그 적재 불가 |
+| `SUPABASE_SERVICE_ROLE_KEY` | (선택) anon SELECT 차단 시 대시보드 로그 조회용 |
+
+### 국제화 · 레이턴시 (외국인 쇼퍼 + 실서비스 UX)
+
+- **한/영 전환**: UI 문자열과 **AI 답변 언어**를 함께 전환한다. 영어 모드에서도 법령은 원문+영역 병기로 정확성을 유지("전자상거래법(Act on Consumer Protection in Electronic Commerce) 제17조").
+- **복잡도 라우팅 + 로딩 UX**: 단일 도메인은 빠른 경로(첫 텍스트 ~5초), 답변 전 대기 중에는 채팅·작업기록 양쪽에 "상품 검색 중 → 답변 작성 중" 단계를 실시간 표시.
 
 ## 5. 신뢰성·보안 설계 (적대적 검토)
 

@@ -21,6 +21,7 @@ interface Product {
 }
 
 type TraceEvent =
+  | { kind: "route"; route: string; label: string }
   | { kind: "iteration"; n: number }
   | { kind: "thinking"; text: string }
   | { kind: "agent_start"; agent: string; label: string; task: string }
@@ -142,6 +143,9 @@ export default function ChatPage() {
           }
           return [...prev, { kind: "thinking", text: event.text as string }];
         });
+        break;
+      case "route":
+        setTraces((prev) => [...prev, { kind: "route", route: event.route as string, label: event.label as string }]);
         break;
       case "iteration":
         setTraces((prev) => [...prev, { kind: "iteration", n: event.n as number }]);
@@ -514,6 +518,18 @@ export default function ChatPage() {
             {traces.map((t, i) => {
               const meta = "agent" in t && t.agent ? AGENT_META[t.agent] : undefined;
               switch (t.kind) {
+                case "route":
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-lg border border-[var(--ledger-line)] bg-[var(--ledger-2)] p-2.5"
+                    >
+                      <span className="mb-0.5 block font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--ledger-ink-2)]">
+                        Route · 복잡도 라우팅
+                      </span>
+                      <p className="text-[12px] font-semibold text-[var(--ledger-ink)]">{t.label}</p>
+                    </div>
+                  );
                 case "iteration":
                   return (
                     <div

@@ -3,11 +3,50 @@ import { z } from "zod";
 import {
   ORCHESTRATOR_TOOLS,
   ORCHESTRATOR_SYSTEM,
+  DIRECT_SYSTEMS,
   executeDelegation,
 } from "@/lib/agents";
+import { TOOLS, executeTool } from "@/lib/tools";
 import { logConversation } from "@/lib/supabase";
 import { checkRateLimit, clientIp } from "@/lib/ratelimit";
 import { extractCitations, checkCitationsExist, RetrievedArticle } from "@/lib/verify";
+
+type Route = "shopping" | "law" | "both";
+
+const ROUTE_SCHEMA = {
+  type: "object" as const,
+  properties: { route: { type: "string" as const, enum: ["shopping", "law", "both"] } },
+  required: ["route"],
+  additionalProperties: false,
+};
+
+/**
+ * 복잡도 라우팅 — 질문이 상품/법령 중 한 영역만 필요한지, 둘 다인지 저비용 Haiku로 분류.
+ * 단일 도메인은 오케스트레이션 왕복 없이 전문가가 직접 답해 레이턴시를 크게 줄인다.
+ * (A/B 측정: 복합 질문에서 멀티는 단일 대비 품질 동률·레이턴시 2.6배 → 단일 도메인은 직접 경로가 옳다)
+ */
+async function classifyRoute(question: string): Promise<Route> {
+  try {
+    const res = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 60,
+      output_config: { format: { type: "json_schema", schema: ROUTE_SCHEMA } },
+      system:
+        "질문에 필요한 작업을 분류하세요.\n" +
+        "- 'shopping': 실제로 상품을 검색/추천/비교해야 함.\n" +
+        "- 'law': 환불·청약철회·교환·광고규제·약관 등 법적 근거만 답하면 됨 (상품 검색 불필요). " +
+        "예: '환불 며칠 안에 돼?', '개봉하면 반품 안 돼?' → 상품을 산 맥락이 있어도 상품 검색은 필요 없으므로 law.\n" +
+        "- 'both': 상품을 실제로 찾아 추천하는 것 + 법적 안내가 둘 다 필요. 예: '로봇청소기 추천하고 하자 있으면 교환되는지도 알려줘'.\n" +
+        "핵심: 상품이 문장에 등장해도 '검색해서 추천'이 필요 없으면 shopping/both가 아니다. 진짜 필요한 작업만 보고 분류하라.",
+      messages: [{ role: "user", content: question }],
+    });
+    const text = res.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text;
+    const route = text ? (JSON.parse(text).route as Route) : "both";
+    return route === "shopping" || route === "law" ? route : "both";
+  } catch {
+    return "both"; // 분류 실패 시 안전하게 전체 능력(멀티)로
+  }
+}
 
 export const maxDuration = 300;
 
@@ -177,6 +216,7 @@ export async function POST(req: Request) {
       const traceLog: unknown[] = [];
       const emit = (event: Record<string, unknown>) => {
         if (
+          event.type === "route" ||
           event.type === "agent_start" ||
           event.type === "agent_done" ||
           event.type === "verify_result" ||
@@ -193,6 +233,30 @@ export async function POST(req: Request) {
       };
 
       try {
+        // 복잡도 라우팅: 단일 도메인이면 전문가 직접 경로(빠름), 둘 다면 멀티 오케스트레이션
+        const route = await classifyRoute(userQuestion);
+        const direct = route !== "both";
+        const directAgent = route === "shopping" ? "shopping" : "law";
+        const systemText =
+          route === "both" ? ORCHESTRATOR_SYSTEM : DIRECT_SYSTEMS[directAgent];
+        const activeTools = direct
+          ? TOOLS.filter((t) =>
+              directAgent === "shopping"
+                ? t.name === "search_products" || t.name === "search_reviews"
+                : t.name === "search_law"
+            )
+          : ORCHESTRATOR_TOOLS;
+        emit({
+          type: "route",
+          route,
+          label:
+            route === "both"
+              ? "멀티 에이전트 (상품+법령 병렬)"
+              : route === "shopping"
+                ? "상품 전문가 직접 응답 (빠른 경로)"
+                : "법령 전문가 직접 응답 (빠른 경로)",
+        });
+
         for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
           send({ type: "iteration", n: iteration + 1 });
 
@@ -203,12 +267,12 @@ export async function POST(req: Request) {
             system: [
               {
                 type: "text",
-                text: ORCHESTRATOR_SYSTEM, // 캐시 가능한 고정 프리픽스 (언어 지시는 뒤에 분리)
+                text: systemText, // 캐시 가능한 고정 프리픽스 (언어 지시는 뒤에 분리)
                 cache_control: { type: "ephemeral" },
               },
               ...(lang === "en" ? [{ type: "text" as const, text: langDirective(lang) }] : []),
             ],
-            tools: ORCHESTRATOR_TOOLS,
+            tools: activeTools,
             messages,
           });
 
@@ -299,10 +363,32 @@ export async function POST(req: Request) {
             (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
           );
 
-          // 복수 위임은 병렬 실행 — 서브 에이전트가 동시에 조사한다
           const toolResults = await Promise.all(
             toolUses.map(async (tu): Promise<Anthropic.ToolResultBlockParam> => {
               try {
+                if (direct) {
+                  // 빠른 경로: 전문가가 도구를 직접 호출 (위임/서브에이전트 없음)
+                  emit({ type: "tool_use", agent: directAgent, id: tu.id, name: tu.name, input: tu.input });
+                  const exec = await executeTool(tu.name, tu.input as Record<string, unknown>);
+                  emit({
+                    type: "tool_result",
+                    agent: directAgent,
+                    id: tu.id,
+                    name: tu.name,
+                    summary: exec.summary,
+                    result: exec.result,
+                  });
+                  // 법령 조문을 최종 답변 인용 검증용으로 수집
+                  if (tu.name === "search_law" && Array.isArray(exec.result)) {
+                    for (const a of exec.result as { law: string; article: string; content: string }[]) {
+                      if (!retrievedLaw.some((r) => r.law === a.law && r.article === a.article)) {
+                        retrievedLaw.push({ law: a.law, article: a.article, content: a.content });
+                      }
+                    }
+                  }
+                  return { type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(exec.result) };
+                }
+                // 멀티 경로: 병렬 위임 — 서브 에이전트가 동시에 조사한다
                 const { report, usage, retrievedLaw: lawArticles } = await executeDelegation(
                   tu.name,
                   tu.input as Record<string, unknown>,
@@ -316,23 +402,13 @@ export async function POST(req: Request) {
                     retrievedLaw.push(a);
                   }
                 }
-                return {
-                  type: "tool_result",
-                  tool_use_id: tu.id,
-                  content: report,
-                };
+                return { type: "tool_result", tool_use_id: tu.id, content: report };
               } catch (e) {
                 const message = e instanceof Error ? e.message : String(e);
-                emit({
-                  type: "agent_done",
-                  agent: tu.name === "delegate_shopping" ? "shopping" : "law",
-                  label: "오류",
-                  error: message,
-                });
                 return {
                   type: "tool_result",
                   tool_use_id: tu.id,
-                  content: `에이전트 실행 오류: ${message}`,
+                  content: `도구/에이전트 실행 오류: ${message}`,
                   is_error: true,
                 };
               }

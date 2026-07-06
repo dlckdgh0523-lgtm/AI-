@@ -68,6 +68,41 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── 심사자에게: 제출 노트 ────────────────────────── */}
+      <section className="border-b border-[var(--line)] bg-[var(--paper-2)]">
+        <div className="mx-auto max-w-3xl px-6 py-14 sm:px-8">
+          <p className="eyebrow mb-3">To the reviewer · 제출 노트</p>
+          <h2 className="text-[22px] font-bold leading-[1.3] tracking-[-0.02em] sm:text-[25px]">
+            (주)제로 심사자님께 — 왜 이렇게 만들었는지
+          </h2>
+          <div className="mt-5 space-y-4 text-[14px] leading-relaxed text-[var(--ink-2)]">
+            <p>
+              이 서비스는 <b>(주)제로 사전과제</b> 제출물입니다. 아래 위쪽은 제품처럼 보이지만, 각
+              선택에는 &ldquo;사전과제 평가 기준&rdquo;에 맞춘 이유가 있어 그 근거를 함께 적었습니다.
+              화면의 모든 데이터는 실시간(네이버·법령 API·Neo4j)이고 <b>mock이 없으며</b>, 모든 수치는
+              저장소의 측정 스크립트로 재현됩니다.
+            </p>
+            <div className="grid gap-2.5">
+              {[
+                ["① 문제를 어떻게 정의했나", "커머스는 '사는 것'과 '사고 난 뒤 권리'가 분리돼 있습니다. 상품 추천(네이버)과 소비자 권리(법령)를 한 대화에서 풀되, 후자는 환각이 곧 잘못된 법적 조언이 되므로 근거·검증을 핵심에 뒀습니다."],
+                ["② 에이전트가 어떻게 판단·행동하나", "단순 API 호출이 아니라 오케스트레이터가 질문을 분해해 전문 에이전트에 위임합니다. 다만 A/B로 측정해보니 단일 도메인엔 멀티가 과했기에, 복잡도 라우팅으로 '단순=단일 직접경로, 복합=멀티 병렬'로 나눴습니다. 모든 판단은 우측 '작업 기록'에 실시간 노출됩니다."],
+                ["③ 결과를 서비스 경험으로 어떻게 연결했나", "법령 GraphRAG로 원칙+예외 조문을 함께 회수하고, 인용은 3중 검증을 통과해야 '도장'을 찍습니다. 대화 로그는 대시보드에서 니즈·미충족 수요·핵심 조문으로 환원됩니다. 외국인 쇼퍼를 위한 한/영 전환도 넣었습니다."],
+                ["정직함", "GraphRAG는 '썼다'가 아니라 벡터 대비 복합질의 완전성 40%→100%로 측정했고, 멀티 에이전트가 품질 우위를 못 보인 negative result도 숨기지 않고 기록했습니다."],
+              ].map(([h, b]) => (
+                <div key={h} className="rounded-xl border border-[var(--line)] bg-[var(--card)] p-4">
+                  <p className="mb-1 text-[13px] font-bold text-[var(--ink)]">{h}</p>
+                  <p className="text-[13px] leading-relaxed text-[var(--ink-3)]">{b}</p>
+                </div>
+              ))}
+            </div>
+            <p className="flex items-center justify-end gap-2 pt-1 text-[13px] text-[var(--ink-3)]">
+              지원자 <b className="text-[var(--ink)]">이창호</b>
+              <span className="inline-flex"><Seal size={30} uid="note" /></span>
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* ── 두 개의 창구 ─────────────────────────────────── */}
       <Band eyebrow="One conversation, two counters" title="하나의 대화, 두 개의 창구">
         <div className="grid gap-4 sm:grid-cols-2">

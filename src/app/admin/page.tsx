@@ -126,8 +126,8 @@ export default function AdminPage() {
         title="커머스 인텔리전스"
         eyebrow="Dashboard · 법령 · 니즈 · 신뢰성 · 비용"
         links={[
-          { href: "/about", label: "소개" },
-          { href: "/", label: "채팅 →", primary: true },
+          { href: "/", label: "소개" },
+          { href: "/chat", label: "채팅 →", primary: true },
         ]}
       />
 

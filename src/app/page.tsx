@@ -1,641 +1,459 @@
-"use client";
+import Link from "next/link";
+import { Seal, TopBar } from "@/components/brand";
 
-import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Seal } from "@/components/brand";
+export const metadata = {
+  title: "쇼핑 컨시어지 — 상품도, 권리도 지키는 AI 커머스 에이전트",
+  description:
+    "이창호 · (주)제로 사전과제. 법령 GraphRAG + 멀티 에이전트 + 3중 인용 검증으로 상품 추천과 소비자 권리를 하나의 대화에서.",
+};
 
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
+/**
+ * 랜딩 페이지 — 제품을 소개하면서, 무엇을·어떻게·왜 만들었는지의 근거(사전과제
+ * 기술 문서)를 함께 담는다. 모든 수치는 저장소의 측정 스크립트로 재현 가능.
+ */
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+      <TopBar
+        title="쇼핑 컨시어지"
+        eyebrow="(주)제로 사전과제 · 이창호"
+        links={[
+          { href: "/admin", label: "대시보드" },
+          { href: "/chat", label: "라이브 데모 →", primary: true },
+        ]}
+      />
+
+      {/* ── HERO ─────────────────────────────────────────── */}
+      <section className="relative overflow-hidden border-b border-[var(--line)]">
+        {/* 배경 워터마크 도장 */}
+        <div className="pointer-events-none absolute -right-24 -top-16 hidden opacity-[0.04] lg:block">
+          <Seal size={460} uid="ghost" />
+        </div>
+        <div className="mx-auto max-w-5xl px-6 py-20 sm:px-8 sm:py-28">
+          <div className="mb-6 flex justify-center sm:justify-start">
+            <Seal size={112} uid="hero" stamp />
+          </div>
+          <p className="eyebrow mb-4 text-center sm:text-left">법령 GraphRAG 기반 AI 커머스 에이전트</p>
+          <h1 className="text-center text-[40px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-left sm:text-[56px]">
+            사는 것부터,<br />
+            <span className="text-[var(--pine)]">지키는</span> 것까지.
+          </h1>
+          <p className="mx-auto mt-6 max-w-xl text-center text-[15px] leading-relaxed text-[var(--ink-2)] sm:mx-0 sm:text-left sm:text-[16px]">
+            필요한 상품을 찾아 비교해 드리고, 소비자 권리는 실제 법 조문을 근거로 안내합니다.
+            멀티 에이전트가 판단 과정을 모두 보여주고, 모든 인용은{" "}
+            <span className="font-semibold text-[var(--seal-deep)]">3중 검증</span>을 거쳐 도장을 찍습니다.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3 sm:justify-start">
+            <Link
+              href="/chat"
+              className="rounded-xl bg-[var(--ink)] px-5 py-3 text-[14px] font-semibold text-[var(--paper)] transition hover:bg-[var(--pine)]"
+            >
+              라이브 데모 시작 →
+            </Link>
+            <Link
+              href="/admin"
+              className="rounded-xl border border-[var(--line)] bg-[var(--card)] px-5 py-3 text-[14px] font-semibold text-[var(--ink-2)] transition hover:border-[var(--ink-3)]"
+            >
+              인텔리전스 대시보드
+            </Link>
+          </div>
+
+          {/* 지표 스트립 */}
+          <dl className="mt-12 grid max-w-2xl grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+            <Metric value="186" label="법령 조문" />
+            <Metric value="258" label="참조 엣지" />
+            <Metric value="100%" label="복합질의 완전성" accent />
+            <Metric value="3중" label="인용 검증" />
+          </dl>
+        </div>
+      </section>
+
+      {/* ── 두 개의 창구 ─────────────────────────────────── */}
+      <Band eyebrow="One conversation, two counters" title="하나의 대화, 두 개의 창구">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <WorldCard
+            hanja="商"
+            accent="var(--pine)"
+            tint="var(--pine-tint)"
+            title="상품 추천 · 비교"
+            desc="상황을 말하면 조건에 맞는 상품을 네이버 쇼핑에서 찾아 비교표로 정리합니다. 별점을 지어내지 않고, 후기의 정성적 근거만 인용합니다."
+            foot="네이버 쇼핑 · 블로그 검색 (실시간, mock 없음)"
+          />
+          <WorldCard
+            hanja="法"
+            accent="var(--seal)"
+            tint="var(--seal-tint)"
+            title="소비자 권리 · 법령"
+            desc="환불·청약철회·교환·광고규제를 실제 조문을 근거로 안내합니다. 원칙 조문 하나가 아니라, 참조로 얽힌 예외·단서 조문까지 함께 회수합니다."
+            foot="전자상거래법 · 표시광고법 · 약관규제법 · 소비자기본법"
+          />
+        </div>
+      </Band>
+
+      {/* ── 왜 GraphRAG ──────────────────────────────────── */}
+      <Band
+        eyebrow="Why GraphRAG · measured, not claimed"
+        title="벡터 검색은 조문 하나를 찾고, 그래프는 답 전체를 찾습니다"
+        dark
+      >
+        <p className="max-w-2xl text-[14px] leading-relaxed text-[var(--ledger-ink)]/80">
+          단순 벡터 RAG는 질문과 유사한 조문 하나는 잘 찾지만, 완전한 답에 필요한{" "}
+          <b className="text-[var(--ledger-ink)]">원칙 + 예외 + 단서</b> 조문 묶음은 놓칩니다. 벡터로
+          진입점을 찾고 <code className="rounded bg-white/10 px-1 font-mono text-[0.85em]">REFERS_TO</code>{" "}
+          참조를 1홉 순회해 관련 조문을 함께 회수합니다. 자체 평가 하네스(17문항)로 측정한 결과:
+        </p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <CompareStat label="단일 조문 검색 recall (12문항)" a="92%" b="92%" note="차이 없음 — 정직하게 기록" />
+          <CompareStat label="복합 질의 완전성 (5문항)" a="40%" b="100%" note="가치는 여기서 나온다" highlight />
+        </div>
+        <p className="mt-6 max-w-2xl rounded-xl border border-[var(--ledger-line)] bg-[var(--ledger-2)] p-4 text-[13px] leading-relaxed text-[var(--ledger-ink)]/75">
+          예: <b className="text-[var(--ledger-ink)]">&ldquo;개봉한 노트북 단순변심 환불 돼?&rdquo;</b> →
+          벡터는 제17조 제1항(원칙)만 잡지만, 그래프 확장은 제2항 각호(예외)와 단서(확인 개봉 제외),
+          &ldquo;표시 없으면 철회 가능&rdquo;(예외의 예외)까지 회수해 3단 논리로 답합니다.
+        </p>
+      </Band>
+
+      {/* ── 파이프라인 ──────────────────────────────────── */}
+      <Band eyebrow="How it works" title="질문 하나가 답이 되기까지">
+        <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Step
+            n="01"
+            title="질문 분해"
+            role="오케스트레이터 · Sonnet 5"
+            desc="상품·권리가 섞인 질문을 나눠 어떤 전문 에이전트에 맡길지 판단."
+          />
+          <Step
+            n="02"
+            title="병렬 위임"
+            role="商 / 法 · Haiku 4.5"
+            desc="agent-as-tool 로 쇼핑·법령 에이전트에 같은 턴에 병렬 위임."
+          />
+          <Step
+            n="03"
+            title="도구 실행"
+            role="네이버 API · 법령 그래프"
+            desc="상품·후기 검색과 벡터 진입 → 그래프 확장으로 조문 회수."
+          />
+          <Step
+            n="04"
+            title="3중 인용 검증"
+            role="검증관 · 도장"
+            desc="인용 조문을 검색 집합과 대조해 통과한 답에만 도장을 찍음."
+            seal
+          />
+        </ol>
+      </Band>
+
+      {/* ── 3중 검증 ────────────────────────────────────── */}
+      <Band
+        eyebrow="Reliability"
+        title="그럴듯하지만 틀린 답을 막는 3중 검증"
+        sub="AI가 없는 조문을 지어내는 순간 소비자에게는 잘못된 법적 조언이 됩니다. 그래서 인용은 통과해야 도장이 찍힙니다."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <VerifyCard
+            n="①"
+            title="결정론적 대조"
+            desc="보고서가 인용한 조문이 이번 조사에서 실제 그래프에서 검색됐는지 코드로 확인 — 환각 인용을 기계적으로 탈락."
+          />
+          <VerifyCard
+            n="②"
+            title="LLM 크리틱"
+            desc="&lsquo;이 인용을 반박하라&rsquo;는 검증관이 조문 원문과 대조. 실패 시 1회 자동 수정, 검증이 죽어도 원본 폴백."
+          />
+          <VerifyCard
+            n="③"
+            title="최종 답변 검증"
+            desc="합성 중 조문이 바뀌는 경우까지, 최종 답변의 모든 인용을 다시 대조하고 미확인 인용은 각주로 정직하게 고지."
+          />
+        </div>
+      </Band>
+
+      {/* ── 기술 하이라이트 ─────────────────────────────── */}
+      <Band eyebrow="Under the hood" title="설계 근거">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TechCard title="임베딩 · 벡터 검색">
+            Voyage <code>voyage-3.5</code>(1024d), 한국어 포함 다국어 retrieval 특화.{" "}
+            <code>document</code>/<code>query</code> 입력 타입을 분리해 비대칭 검색 품질 확보. Neo4j 벡터
+            인덱스 하나에서 <b>벡터 진입 → 그래프 확장</b>이 완결 — 이중 DB 동기화 비용 제거.
+          </TechCard>
+          <TechCard title="의미 캐시 · 키 설계">
+            질문 임베딩이 캐시와 코사인 <b>0.88 이상</b>이면 법률 루프 전체를 건너뜀. 임계값은
+            패러프레이즈(0.90~0.92) vs 타 쟁점(0.65~0.78) 사이 마진으로 <b>측정해</b> 결정. 캐시 키는
+            LLM 검색어가 아닌 <b>사용자 원 질문</b>, TTL 7일 + ingest 시 전체 무효화.
+          </TechCard>
+          <TechCard title="비용 · 모델 배치">
+            합성은 Sonnet 5, 조사 서브에이전트는 Haiku 4.5 — 복합 질문 1건 <b>$0.45 → $0.09(80%↓)</b>.
+            프롬프트 캐싱으로 반복 루프 입력 비용 <b>~90%↓</b>. <code>npm run bench</code>로 재현.
+          </TechCard>
+          <TechCard title="서비스 보안">
+            IP당 분당 6·일 100회 레이트리밋(Denial of Wallet), zod 요청 스키마(4,000자·24턴), 로그
+            읽기 서버 라우트 이전 + Supabase RLS, 프롬프트 인젝션 레드팀, 저장 전 PII 마스킹.
+          </TechCard>
+        </div>
+
+        {/* 모델 배치 표 */}
+        <div className="mt-8">
+          <h3 className="mb-3 text-[13px] font-bold text-[var(--ink-2)]">역할별 모델 배치</h3>
+          <DocTable
+            head={["역할", "모델", "왜"]}
+            rows={[
+              ["오케스트레이터 (분해·합성)", "Claude Sonnet 5", "합성·표 작성엔 충분 — Opus 대비 40%+ 절감, 품질 유지"],
+              ["쇼핑/법률 서브에이전트 (조사)", "Claude Haiku 4.5", "도구 호출·요약 위주 — 복합 질문 1건 80% 절감"],
+              ["인용 검증관 / 후속질문", "Sonnet 5 (저 effort) / Haiku 4.5", "원문 주어진 판별 과제라 최고 성능 모델 불필요"],
+            ]}
+          />
+        </div>
+      </Band>
+
+      {/* ── 한계 ────────────────────────────────────────── */}
+      <Band eyebrow="Honest by design" title="알고 있는 한계">
+        <ul className="grid gap-2.5 text-[13.5px] leading-relaxed text-[var(--ink-2)] sm:grid-cols-2">
+          {[
+            "참조 파싱이 '제N조' 정규식 기반 — 타법 참조·준용 방향성 세분화는 다음 단계.",
+            "평가셋 17문항·저자 작성 gold — 분쟁조정 사례 확장과 LLM 저지 도입 여지.",
+            "레이트리밋 인메모리 — 프로덕션은 서버리스 인스턴스 공유 저장소 필요.",
+            "법률 자문이 아닌 일반 정보 안내이며, 답변에 해당 고지를 포함.",
+          ].map((t) => (
+            <li key={t} className="flex gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--card)] p-3.5">
+              <span className="mt-[7px] h-[5px] w-[5px] shrink-0 rotate-45 rounded-[1px] bg-[var(--seal)]" />
+              {t}
+            </li>
+          ))}
+        </ul>
+      </Band>
+
+      {/* ── 최종 CTA ────────────────────────────────────── */}
+      <section className="border-t border-[var(--line)] bg-[var(--paper-2)]">
+        <div className="mx-auto max-w-5xl px-6 py-20 text-center sm:px-8">
+          <div className="mb-5 flex justify-center">
+            <Seal size={72} uid="cta" />
+          </div>
+          <h2 className="text-[26px] font-bold tracking-[-0.02em] sm:text-[32px]">
+            지금 대화로 확인해 보세요
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-[14px] text-[var(--ink-3)]">
+            상품을 찾아주고, 소비자 권리를 법 조문 근거로 — 판단 과정과 검증 도장까지 실시간으로.
+          </p>
+          <Link
+            href="/chat"
+            className="mt-7 inline-block rounded-xl bg-[var(--ink)] px-6 py-3 text-[14px] font-semibold text-[var(--paper)] transition hover:bg-[var(--pine)]"
+          >
+            라이브 데모 시작 →
+          </Link>
+        </div>
+      </section>
+
+      <footer className="border-t border-[var(--line)] py-6 text-center text-[12px] text-[var(--ink-3)]">
+        (주)제로 사전과제 · 이창호 —{" "}
+        <Link href="/chat" className="text-[var(--pine)] hover:underline">라이브 데모</Link>
+        {" · "}
+        <Link href="/admin" className="text-[var(--pine)] hover:underline">대시보드</Link>
+        {" · "}수치는 <code className="font-mono">npm run eval / bench / redteam</code> 로 재현 가능
+      </footer>
+    </div>
+  );
 }
 
-interface Product {
+/* ── 로컬 프리젠테이션 헬퍼 ─────────────────────────────── */
+
+function Metric({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
+  return (
+    <div>
+      <div className={`figure text-[30px] font-semibold leading-none ${accent ? "text-[var(--seal)]" : "text-[var(--ink)]"}`}>
+        {value}
+      </div>
+      <div className="eyebrow mt-1.5">{label}</div>
+    </div>
+  );
+}
+
+function Band({
+  eyebrow,
+  title,
+  sub,
+  dark,
+  children,
+}: {
+  eyebrow: string;
   title: string;
-  price: number;
-  mall: string;
-  brand?: string;
-  image?: string;
-  link: string;
+  sub?: string;
+  dark?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={dark ? "ledger border-b border-[var(--ledger-line)]" : "border-b border-[var(--line)]"}>
+      <div className="mx-auto max-w-5xl px-6 py-16 sm:px-8 sm:py-20">
+        <p className={`eyebrow mb-3 ${dark ? "!text-[var(--ledger-ink-2)]" : ""}`}>{eyebrow}</p>
+        <h2
+          className={`max-w-3xl text-[24px] font-bold leading-[1.25] tracking-[-0.02em] sm:text-[28px] ${
+            dark ? "text-[var(--ledger-ink)]" : "text-[var(--ink)]"
+          }`}
+        >
+          {title}
+        </h2>
+        {sub && <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-[var(--ink-3)]">{sub}</p>}
+        <div className="mt-8">{children}</div>
+      </div>
+    </section>
+  );
 }
 
-type TraceEvent =
-  | { kind: "iteration"; n: number }
-  | { kind: "thinking"; text: string }
-  | { kind: "agent_start"; agent: string; label: string; task: string }
-  | { kind: "agent_done"; agent: string; label: string; usage?: { input_tokens: number; output_tokens: number } }
-  | { kind: "verify_start"; agent: string }
-  | {
-      kind: "verify_result";
-      agent: string;
-      passed: boolean;
-      revised?: boolean;
-      verdicts: { citation: string; supported: boolean; reason: string }[];
-    }
-  | { kind: "tool_use"; id: string; name: string; input: unknown; agent?: string }
-  | { kind: "tool_result"; id: string; name: string; summary: string; result: unknown; agent?: string };
-
-const TOOL_LABELS: Record<string, string> = {
-  search_products: "상품 검색 · 네이버 쇼핑",
-  search_reviews: "후기 검색 · 네이버 블로그",
-  search_law: "법령 검색 · GraphRAG",
-};
-
-// 오른쪽 장부(worklog)는 어두운 재질 — 밝은 accent 사용
-const AGENT_META: Record<string, { icon: string; accent: string; line: string; bg: string }> = {
-  shopping: { icon: "商", accent: "#7cc4a0", line: "rgba(124,196,160,0.34)", bg: "rgba(124,196,160,0.10)" },
-  law: { icon: "法", accent: "#e5806f", line: "rgba(229,128,111,0.34)", bg: "rgba(229,128,111,0.10)" },
-};
-
-const EXAMPLE_GROUPS: {
+function WorldCard({
+  hanja,
+  accent,
+  tint,
+  title,
+  desc,
+  foot,
+}: {
   hanja: string;
-  world: string;
   accent: string;
   tint: string;
-  label: string;
+  title: string;
   desc: string;
-  items: string[];
-}[] = [
-  {
-    hanja: "商",
-    world: "상품 창구",
-    accent: "var(--pine)",
-    tint: "var(--pine-tint)",
-    label: "상품 추천 · 비교",
-    desc: "상황을 말하면 조건에 맞는 상품을 찾아 비교해 드려요.",
-    items: [
-      "장마철 원룸에서 쓸 제습기 10만원 이하로 추천해줘",
-      "캠핑용 버너 2개만 비교해서 추천해줘",
-    ],
-  },
-  {
-    hanja: "法",
-    world: "권리 창구",
-    accent: "var(--seal)",
-    tint: "var(--seal-tint)",
-    label: "소비자 권리 · 법령",
-    desc: "환불·교환·광고 규제를 실제 법 조문 근거로 안내해요.",
-    items: [
-      "온라인에서 산 노트북 개봉했는데 환불 가능해?",
-      "'전국 최저가 보장'이라고 광고 문구 써도 돼?",
-    ],
-  },
-];
-
-export default function Home() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [traces, setTraces] = useState<TraceEvent[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [input, setInput] = useState("");
-  const [streaming, setStreaming] = useState(false);
-  const [showTrace, setShowTrace] = useState(true); // 판단 과정을 기본으로 옆에 표시
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const taRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, products, suggestions]);
-
-  async function send(text: string) {
-    if (!text.trim() || streaming) return;
-    const history = [...messages, { role: "user" as const, content: text }];
-    setMessages([...history, { role: "assistant", content: "" }]);
-    setTraces([]);
-    setSuggestions([]);
-    setProducts([]);
-    setInput("");
-    setStreaming(true);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
-      });
-      if (!res.ok || !res.body) throw new Error(`요청 실패: ${res.status}`);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() ?? "";
-        for (const part of parts) {
-          if (!part.startsWith("data: ")) continue;
-          handleEvent(JSON.parse(part.slice(6)));
-        }
-      }
-    } catch (e) {
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = {
-          role: "assistant",
-          content: `⚠️ 오류가 발생했습니다: ${e instanceof Error ? e.message : e}`,
-        };
-        return next;
-      });
-    } finally {
-      setStreaming(false);
-    }
-  }
-
-  function handleEvent(event: Record<string, unknown>) {
-    switch (event.type) {
-      case "text_delta":
-        setMessages((prev) => {
-          const next = [...prev];
-          const last = next[next.length - 1];
-          next[next.length - 1] = { ...last, content: last.content + (event.text as string) };
-          return next;
-        });
-        break;
-      case "thinking_delta":
-        setTraces((prev) => {
-          const last = prev[prev.length - 1];
-          if (last?.kind === "thinking") {
-            return [...prev.slice(0, -1), { kind: "thinking", text: last.text + (event.text as string) }];
-          }
-          return [...prev, { kind: "thinking", text: event.text as string }];
-        });
-        break;
-      case "iteration":
-        setTraces((prev) => [...prev, { kind: "iteration", n: event.n as number }]);
-        break;
-      case "agent_start":
-        setTraces((prev) => [
-          ...prev,
-          { kind: "agent_start", agent: event.agent as string, label: event.label as string, task: event.task as string },
-        ]);
-        break;
-      case "agent_done":
-        setTraces((prev) => [
-          ...prev,
-          {
-            kind: "agent_done",
-            agent: event.agent as string,
-            label: event.label as string,
-            usage: event.usage as { input_tokens: number; output_tokens: number } | undefined,
-          },
-        ]);
-        break;
-      case "verify_start":
-        setTraces((prev) => [...prev, { kind: "verify_start", agent: event.agent as string }]);
-        break;
-      case "verify_result":
-        setTraces((prev) => [
-          ...prev,
-          {
-            kind: "verify_result",
-            agent: event.agent as string,
-            passed: event.passed as boolean,
-            revised: event.revised as boolean | undefined,
-            verdicts: (event.verdicts as { citation: string; supported: boolean; reason: string }[]) ?? [],
-          },
-        ]);
-        break;
-      case "tool_use":
-        setTraces((prev) => [
-          ...prev,
-          { kind: "tool_use", id: event.id as string, name: event.name as string, input: event.input, agent: event.agent as string | undefined },
-        ]);
-        break;
-      case "tool_result":
-        setTraces((prev) => [
-          ...prev,
-          {
-            kind: "tool_result",
-            id: event.id as string,
-            name: event.name as string,
-            summary: event.summary as string,
-            result: event.result,
-            agent: event.agent as string | undefined,
-          },
-        ]);
-        if (event.name === "search_products" && Array.isArray(event.result)) {
-          setProducts((prev) => {
-            const seen = new Set(prev.map((p) => p.link));
-            const added = (event.result as Product[]).filter((p) => p.link && !seen.has(p.link));
-            return [...prev, ...added];
-          });
-        }
-        break;
-      case "suggestions":
-        setSuggestions((event.items as string[]) ?? []);
-        break;
-    }
-  }
-
-  const empty = messages.length === 0;
-
+  foot: string;
+}) {
   return (
-    <div className="flex h-screen bg-[var(--paper)] text-[var(--ink)]">
-      <div className="flex flex-1 flex-col">
-        {/* 상단 간판 */}
-        <header className="z-10 flex items-center justify-between border-b border-[var(--line)] bg-[var(--paper)]/85 px-5 py-2.5 backdrop-blur">
-          <div className="flex items-center gap-3">
-            <Seal size={38} uid="brand" />
-            <div className="leading-tight">
-              <div className="flex items-center gap-1.5 text-[15px] font-bold tracking-[-0.02em]">
-                쇼핑 컨시어지
-                <span className="rounded bg-[var(--seal-tint)] px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-wider text-[var(--seal-deep)]">
-                  BETA
-                </span>
-              </div>
-              <p className="eyebrow mt-0.5">Commerce × 소비자권리 · Verified</p>
-            </div>
+    <div className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-[0_1px_2px_rgba(33,29,24,0.04)]">
+      <div className="h-[3px] w-full" style={{ background: accent }} />
+      <div className="p-6">
+        <span
+          className="flex h-9 w-9 items-center justify-center rounded-lg font-serif text-[18px] font-semibold text-white"
+          style={{ background: accent }}
+        >
+          {hanja}
+        </span>
+        <h3 className="mt-4 text-[17px] font-bold">{title}</h3>
+        <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--ink-2)]">{desc}</p>
+        <p className="mt-4 border-t border-[var(--line)] pt-3 text-[11.5px]" style={{ color: accent }}>
+          {foot}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CompareStat({
+  label,
+  a,
+  b,
+  note,
+  highlight,
+}: {
+  label: string;
+  a: string;
+  b: string;
+  note: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border p-5 ${
+        highlight ? "border-[#7cc4a0]/40 bg-[#7cc4a0]/[0.08]" : "border-[var(--ledger-line)] bg-[var(--ledger-2)]"
+      }`}
+    >
+      <p className="text-[12.5px] text-[var(--ledger-ink)]/70">{label}</p>
+      <div className="mt-3 flex items-end gap-3">
+        <div>
+          <div className="figure text-[22px] font-semibold text-[var(--ledger-ink-2)]">{a}</div>
+          <div className="font-mono text-[9px] uppercase tracking-wider text-[var(--ledger-ink-2)]">벡터 단독</div>
+        </div>
+        <div className="mb-2 text-[var(--ledger-ink-2)]">→</div>
+        <div>
+          <div className={`figure text-[34px] font-semibold leading-none ${highlight ? "text-[#7cc4a0]" : "text-[var(--ledger-ink)]"}`}>
+            {b}
           </div>
-          <nav className="flex items-center gap-1">
-            <button
-              onClick={() => setShowTrace((v) => !v)}
-              className={`rounded-lg px-3 py-1.5 text-[13px] font-medium transition ${
-                showTrace
-                  ? "bg-[var(--ink)] text-[var(--paper)]"
-                  : "text-[var(--ink-2)] hover:bg-[var(--paper-2)]"
-              }`}
-            >
-              작업 기록{showTrace ? " ·" : ""}
-            </button>
-            <a
-              href="/admin"
-              className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[var(--ink-2)] transition hover:bg-[var(--paper-2)]"
-            >
-              대시보드
-            </a>
-            <a
-              href="/about"
-              className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[var(--ink-2)] transition hover:bg-[var(--paper-2)]"
-            >
-              소개
-            </a>
-          </nav>
-        </header>
-
-        {/* 본문 */}
-        <main className="flex-1 overflow-y-auto">
-          {empty ? (
-            <div className="mx-auto flex min-h-full max-w-2xl flex-col justify-center px-5 py-10">
-              <div className="mb-9 text-center">
-                <div className="mb-5 flex justify-center">
-                  <Seal size={104} uid="hero" stamp />
-                </div>
-                <p className="eyebrow mb-3">AI 커머스 에이전트 · GraphRAG</p>
-                <h1 className="text-[30px] font-bold leading-[1.15] tracking-[-0.03em] text-[var(--ink)]">
-                  사는 것부터,<br />지키는 것까지.
-                </h1>
-                <p className="mx-auto mt-4 max-w-md text-[14px] leading-relaxed text-[var(--ink-3)]">
-                  필요한 상품을 찾아 비교해 드리고, 소비자 권리는 실제 법 조문을 근거로
-                  안내합니다. 모든 답변의 인용은 <span className="text-[var(--seal-deep)]">검증</span>을 거칩니다.
-                </p>
-              </div>
-              <div className="grid gap-3.5 sm:grid-cols-2">
-                {EXAMPLE_GROUPS.map((g) => (
-                  <div
-                    key={g.label}
-                    className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-[0_1px_2px_rgba(33,29,24,0.04)]"
-                  >
-                    <div className="h-[3px] w-full" style={{ background: g.accent }} />
-                    <div className="p-4">
-                      <div className="mb-1 flex items-center gap-2">
-                        <span
-                          className="flex h-6 w-6 items-center justify-center rounded-md font-serif text-[13px] font-semibold text-white"
-                          style={{ background: g.accent }}
-                        >
-                          {g.hanja}
-                        </span>
-                        <span className="text-[14px] font-bold">{g.label}</span>
-                      </div>
-                      <p className="mb-3 pl-8 text-[11.5px] leading-snug text-[var(--ink-3)]">{g.desc}</p>
-                      <div className="space-y-2">
-                        {g.items.map((ex) => (
-                          <button
-                            key={ex}
-                            onClick={() => send(ex)}
-                            className="group flex w-full items-start gap-2 rounded-xl bg-[var(--paper)] px-3 py-2.5 text-left text-[13px] leading-snug text-[var(--ink-2)] transition hover:bg-[var(--paper-2)]"
-                          >
-                            <span
-                              className="mt-[6px] h-[5px] w-[5px] shrink-0 rotate-45 rounded-[1px] opacity-70 transition group-hover:opacity-100"
-                              style={{ background: g.accent }}
-                            />
-                            {ex}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="mx-auto max-w-2xl space-y-5 px-4 py-6">
-              {messages.map((m, i) =>
-                m.role === "user" ? (
-                  <div key={i} className="flex justify-end">
-                    <div className="max-w-[82%] rounded-2xl rounded-tr-sm bg-[var(--ink)] px-4 py-2.5 text-[14px] leading-relaxed text-[var(--paper)] shadow-sm">
-                      {m.content}
-                    </div>
-                  </div>
-                ) : (
-                  <div key={i} className="flex gap-2.5">
-                    <div
-                      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--pine)] font-serif text-[14px] text-white"
-                      title="컨시어지"
-                    >
-                      詢
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="rounded-2xl rounded-tl-sm border border-[var(--line)] bg-[var(--card)] px-4 py-3 shadow-[0_1px_2px_rgba(33,29,24,0.04)]">
-                        {m.content ? (
-                          <div className="markdown-body">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1 py-1">
-                            <span className="typing-dot" />
-                            <span className="typing-dot" />
-                            <span className="typing-dot" />
-                            <span className="ml-2 text-[13px] text-[var(--ink-3)]">
-                              컨시어지가 근거를 찾고 있어요
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 상품 카드 (마지막 어시스턴트 메시지 아래) */}
-                      {i === messages.length - 1 && products.length > 0 && (
-                        <div className="fade-in mt-3">
-                          <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-[var(--ink-3)]">
-                            <span className="h-[6px] w-[6px] rotate-45 rounded-[1px] bg-[var(--pine)]" />
-                            네이버 쇼핑 검색 결과 <span className="figure text-[var(--ink-2)]">{products.length}</span>개
-                          </p>
-                          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                            {products.slice(0, 9).map((p) => (
-                              <a
-                                key={p.link}
-                                href={p.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--card)] transition hover:border-[var(--pine)] hover:shadow-md"
-                              >
-                                <div className="aspect-square overflow-hidden bg-[var(--paper)]">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={p.image}
-                                    alt={p.title}
-                                    loading="lazy"
-                                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                                  />
-                                </div>
-                                <div className="p-2.5">
-                                  <p className="line-clamp-2 min-h-[2.4em] text-[12px] leading-snug text-[var(--ink-2)]">
-                                    {p.title}
-                                  </p>
-                                  <p className="mt-1.5 text-[var(--ink)]">
-                                    <span className="figure text-[16px] font-semibold">
-                                      {p.price.toLocaleString()}
-                                    </span>
-                                    <span className="text-[12px] text-[var(--ink-3)]"> 원</span>
-                                  </p>
-                                  <p className="mt-0.5 truncate text-[11px] font-medium text-[var(--pine)]">{p.mall}</p>
-                                </div>
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 후속 액션 */}
-                      {i === messages.length - 1 && suggestions.length > 0 && !streaming && (
-                        <div className="fade-in mt-3">
-                          <p className="eyebrow mb-2">이어서 물어보기</p>
-                          <div className="flex flex-wrap gap-2">
-                            {suggestions.map((s) => (
-                              <button
-                                key={s}
-                                onClick={() => send(s)}
-                                className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3.5 py-1.5 text-[13px] text-[var(--ink-2)] transition hover:border-[var(--pine)] hover:bg-[var(--pine-tint)] hover:text-[var(--pine)]"
-                              >
-                                {s}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              )}
-              <div ref={bottomRef} />
-            </div>
-          )}
-        </main>
-
-        {/* 입력창 */}
-        <div className="border-t border-[var(--line)] bg-[var(--paper)] px-4 py-3">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(input);
-            }}
-            className="mx-auto flex max-w-2xl items-end gap-2"
-          >
-            <div className="flex flex-1 items-end rounded-2xl border border-[var(--line)] bg-[var(--card)] px-4 py-2 transition focus-within:border-[var(--pine)] focus-within:shadow-[0_0_0_3px_var(--pine-tint)]">
-              <textarea
-                ref={taRef}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  if (taRef.current) {
-                    taRef.current.style.height = "auto";
-                    taRef.current.style.height = Math.min(taRef.current.scrollHeight, 120) + "px";
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    send(input);
-                  }
-                }}
-                rows={1}
-                placeholder="예: 자취 시작하는데 20만원 이하 로봇청소기 추천해줘"
-                className="max-h-[120px] flex-1 resize-none bg-transparent py-1 text-[14px] outline-none placeholder:text-[var(--ink-3)]"
-                disabled={streaming}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={streaming || !input.trim()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--ink)] text-[var(--paper)] transition hover:bg-[var(--pine)] disabled:bg-[var(--line)] disabled:text-[var(--ink-3)]"
-              aria-label="전송"
-            >
-              {streaming ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              ) : (
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
-                  <path d="M3.4 20.4L21 12 3.4 3.6 3.4 10.2 15 12 3.4 13.8z" fill="currentColor" />
-                </svg>
-              )}
-            </button>
-          </form>
-          <p className="mx-auto mt-1.5 max-w-2xl text-center text-[11px] text-[var(--ink-3)]">
-            상품 정보·법령은 실시간 검색 결과 기반입니다. 법령 안내는 일반 정보이며 법률 자문이 아닙니다.
-          </p>
+          <div className="font-mono text-[9px] uppercase tracking-wider text-[var(--ledger-ink-2)]">GraphRAG</div>
         </div>
       </div>
+      <p className="mt-3 text-[11.5px] text-[var(--ledger-ink)]/60">{note}</p>
+    </div>
+  );
+}
 
-      {/* 장부(worklog) — 컨시어지의 뒷창구 */}
-      {showTrace && (
-        <aside className="ledger hidden w-[340px] shrink-0 flex-col border-l border-[var(--ledger-line)] lg:flex">
-          <div className="flex items-center justify-between border-b border-[var(--ledger-line)] px-4 py-3">
-            <div>
-              <h2 className="text-[13px] font-bold text-[var(--ledger-ink)]">작업 기록</h2>
-              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ledger-ink-2)]">
-                Worklog · 판단 · 도구 · 검증
-              </p>
-            </div>
-            <button
-              onClick={() => setShowTrace(false)}
-              className="text-[var(--ledger-ink-2)] transition hover:text-[var(--ledger-ink)]"
-              aria-label="작업 기록 닫기"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="flex-1 space-y-2 overflow-y-auto p-3">
-            {traces.length === 0 && (
-              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                <div className="select-none font-serif text-[130px] leading-none text-[var(--ledger-ink)]/[0.055]">
-                  帳
-                </div>
-                <p className="ledger-entry mt-3 max-w-[240px] leading-relaxed text-[var(--ledger-ink-2)]">
-                  질문을 보내면 오케스트레이터의 판단 · 에이전트 위임 · 도구 호출 · 법령 그래프
-                  탐색 · 인용 검증이 순서대로 이곳에 기록됩니다.
-                </p>
-              </div>
-            )}
-            {traces.map((t, i) => {
-              const meta = "agent" in t && t.agent ? AGENT_META[t.agent] : undefined;
-              switch (t.kind) {
-                case "iteration":
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 px-1 pt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ledger-ink-2)]"
-                    >
-                      <span className="h-px flex-1 bg-[var(--ledger-line)]" />
-                      Orchestrator · <span className="figure">{t.n}</span>회차
-                      <span className="h-px flex-1 bg-[var(--ledger-line)]" />
-                    </div>
-                  );
-                case "thinking":
-                  return (
-                    <div key={i} className="rounded-lg bg-[var(--ledger-2)] p-2.5">
-                      <span className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--ledger-ink-2)]">
-                        判斷 · 판단
-                      </span>
-                      <p className="text-[12px] leading-relaxed text-[var(--ledger-ink)]/85">{t.text}</p>
-                    </div>
-                  );
-                case "agent_start":
-                  return (
-                    <div
-                      key={i}
-                      className="rounded-lg border p-2.5"
-                      style={{ borderColor: meta?.line, background: meta?.bg }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[12px] font-bold" style={{ color: meta?.accent }}>
-                        <span className="font-serif">{meta?.icon}</span> {t.label} 시작
-                      </div>
-                      <p className="ledger-entry mt-1 line-clamp-3 text-[var(--ledger-ink-2)]">위임: {t.task}</p>
-                    </div>
-                  );
-                case "agent_done":
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-semibold"
-                      style={{ borderColor: meta?.line, background: meta?.bg, color: meta?.accent }}
-                    >
-                      <span className="font-serif">{meta?.icon}</span> {t.label} 완료
-                      {t.usage ? (
-                        <span className="ml-auto font-mono text-[10px] font-normal text-[var(--ledger-ink-2)]">
-                          <span className="figure">{t.usage.input_tokens}</span>/
-                          <span className="figure">{t.usage.output_tokens}</span> tok
-                        </span>
-                      ) : null}
-                    </div>
-                  );
-                case "verify_start":
-                  return (
-                    <div key={i} className="ml-3 rounded-lg border border-[#8a6d2f]/40 bg-[#8a6d2f]/15 p-2 text-[11px] text-[#e0be7a]">
-                      🛡 인용 검증 중…
-                    </div>
-                  );
-                case "verify_result":
-                  return t.passed ? (
-                    <div
-                      key={i}
-                      className="ml-3 flex items-center gap-3 rounded-lg border border-[var(--ledger-line)] bg-[var(--ledger-2)] p-2.5"
-                    >
-                      <Seal size={46} uid={`v${i}`} stamp />
-                      <div className="min-w-0">
-                        <p className="text-[12px] font-bold text-[var(--ledger-ink)]">인용 근거 검증 통과</p>
-                        <p className="font-mono text-[10.5px] text-[var(--ledger-ink-2)]">
-                          <span className="figure">{t.verdicts.length}</span>건 조문 대조 · 確認
-                          {t.revised ? " · 수정 반영" : ""}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div key={i} className="ml-3 rounded-lg border border-[#8a6d2f]/40 bg-[#8a6d2f]/15 p-2.5 text-[12px] text-[#e0be7a]">
-                      <span className="font-bold">🛡 검증 실패 → 보고서 수정</span>
-                      {t.verdicts.some((v) => !v.supported) && (
-                        <ul className="ledger-entry mt-1 space-y-0.5">
-                          {t.verdicts.filter((v) => !v.supported).map((v, j) => (
-                            <li key={j}>✘ {v.citation}: {v.reason}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                case "tool_use":
-                  return (
-                    <div key={i} className="ml-3 rounded-lg border border-[var(--ledger-line)] bg-[var(--ledger-2)] p-2.5">
-                      <span className="font-mono text-[11px] font-semibold text-[var(--ledger-ink)]">
-                        › {TOOL_LABELS[t.name] ?? t.name}
-                      </span>
-                      <pre className="ledger-entry mt-1 overflow-x-auto whitespace-pre-wrap text-[10px] text-[var(--ledger-ink-2)]">
-                        {JSON.stringify(t.input, null, 1)}
-                      </pre>
-                    </div>
-                  );
-                case "tool_result":
-                  return (
-                    <div key={i} className="ml-3 rounded-lg border border-[#7cc4a0]/25 bg-[#7cc4a0]/[0.08] p-2.5">
-                      <span className="text-[12px] font-semibold text-[#7cc4a0]">✓ {t.summary}</span>
-                      {t.name === "search_law" && Array.isArray(t.result) && (
-                        <ul className="ledger-entry mt-1.5 space-y-0.5 text-[var(--ledger-ink)]/80">
-                          {(t.result as { law: string; article: string; via: string }[]).map((a, j) => (
-                            <li key={j}>
-                              {a.via === "graph-expansion" ? "└→ " : "• "}
-                              {a.article}
-                              {a.via === "graph-expansion" && (
-                                <span className="text-[#7cc4a0]"> (그래프 확장)</span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  );
-              }
-            })}
-          </div>
-        </aside>
-      )}
+function Step({
+  n,
+  title,
+  role,
+  desc,
+  seal,
+}: {
+  n: string;
+  title: string;
+  role: string;
+  desc: string;
+  seal?: boolean;
+}) {
+  return (
+    <li className="relative rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5">
+      <div className="flex items-center justify-between">
+        <span className="figure text-[15px] font-semibold text-[var(--ink-3)]">{n}</span>
+        {seal ? (
+          <span className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--seal)] font-serif text-[11px] text-[var(--seal)]">
+            確
+          </span>
+        ) : null}
+      </div>
+      <h3 className="mt-3 text-[15px] font-bold">{title}</h3>
+      <p className="mt-1 font-mono text-[10.5px] uppercase tracking-wider text-[var(--pine)]">{role}</p>
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-[var(--ink-2)]">{desc}</p>
+    </li>
+  );
+}
+
+function VerifyCard({ n, title, desc }: { n: string; title: string; desc: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5">
+      <span className="figure text-[22px] font-semibold text-[var(--seal)]">{n}</span>
+      <h3 className="mt-2 text-[15px] font-bold">{title}</h3>
+      <p className="mt-2 text-[12.5px] leading-relaxed text-[var(--ink-2)]">{desc}</p>
+    </div>
+  );
+}
+
+function TechCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 [&_code]:rounded [&_code]:bg-[var(--paper-2)] [&_code]:px-1 [&_code]:font-mono [&_code]:text-[0.82em]">
+      <h3 className="text-[15px] font-bold">{title}</h3>
+      <p className="mt-2.5 text-[13px] leading-relaxed text-[var(--ink-2)]">{children}</p>
+    </div>
+  );
+}
+
+function DocTable({ head, rows }: { head: string[]; rows: string[][] }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-[var(--line)]">
+      <table className="w-full border-collapse text-[13px]">
+        <thead>
+          <tr>
+            {head.map((h) => (
+              <th
+                key={h}
+                className="border-b border-[var(--line)] bg-[var(--paper)] px-3.5 py-2.5 text-left text-[12px] font-bold text-[var(--ink-2)]"
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className={i % 2 ? "bg-[#faf9f5]" : "bg-[var(--card)]"}>
+              {r.map((c, j) => (
+                <td
+                  key={j}
+                  className={`border-b border-[var(--line-soft)] px-3.5 py-2.5 align-top text-[var(--ink-2)] ${
+                    j === 0 ? "font-semibold text-[var(--ink)]" : ""
+                  }`}
+                >
+                  {c}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

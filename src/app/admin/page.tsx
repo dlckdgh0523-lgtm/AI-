@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { TopBar } from "@/components/brand";
 
 interface Trace {
   kind: string;
@@ -32,11 +32,11 @@ interface TopArticle {
 const PRICE_IN = 3;
 const PRICE_OUT = 15;
 
-// 도구 이름 → 사람이 읽는 라벨 (평가자 혼동 방지)
+// 도구 이름 → 사람이 읽는 라벨
 const TOOL_LABELS: Record<string, string> = {
-  search_products: "🛒 상품 검색 (네이버 쇼핑)",
-  search_reviews: "📝 후기 검색 (네이버 블로그)",
-  search_law: "⚖️ 법령 검색 (GraphRAG)",
+  search_products: "상품 검색 · 네이버 쇼핑",
+  search_reviews: "후기 검색 · 네이버 블로그",
+  search_law: "법령 검색 · GraphRAG",
 };
 
 // 니즈 분석용 키워드 카테고리
@@ -121,34 +121,23 @@ export default function AdminPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f7f8fa] px-6 py-6 text-[#191919] sm:px-8">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#03c75a] font-black text-white">
-              쇼
-            </div>
-            <div>
-              <h1 className="text-lg font-bold">커머스 인텔리전스 대시보드</h1>
-              <p className="text-[12px] text-[#767676]">
-                핵심 법령 조문 · 고객 니즈 분석 · 신뢰성 지표 · 대화 로그 · 비용 관측
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-1.5">
-            <Link
-              href="/about"
-              className="rounded-lg border border-[#dfe2e7] bg-white px-3 py-1.5 text-[13px] font-medium text-[#4b4b4b] hover:bg-[#f1f3f5]"
-            >
-              📄 기술 문서
-            </Link>
-            <Link
-              href="/"
-              className="rounded-lg border border-[#dfe2e7] bg-white px-3 py-1.5 text-[13px] font-medium text-[#4b4b4b] hover:bg-[#f1f3f5]"
-            >
-              ← 채팅으로
-            </Link>
-          </div>
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+      <TopBar
+        title="커머스 인텔리전스"
+        eyebrow="Dashboard · 법령 · 니즈 · 신뢰성 · 비용"
+        links={[
+          { href: "/about", label: "소개" },
+          { href: "/", label: "채팅 →", primary: true },
+        ]}
+      />
+
+      <div className="mx-auto max-w-5xl px-6 py-8 sm:px-8">
+        <header className="mb-7">
+          <p className="eyebrow mb-2">Overview</p>
+          <h1 className="text-[22px] font-bold tracking-[-0.02em]">커머스 인텔리전스 대시보드</h1>
+          <p className="mt-1.5 text-[13px] text-[var(--ink-3)]">
+            핵심 법령 조문 · 고객 니즈 분석 · 신뢰성 지표 · 대화 로그 · 비용 관측
+          </p>
         </header>
 
         {/* 지표 카드 */}
@@ -158,36 +147,27 @@ export default function AdminPage() {
             label="총 토큰 (입력/출력)"
             value={`${totalIn.toLocaleString()} / ${totalOut.toLocaleString()}`}
           />
-          <StatCard
-            label="캐시 히트 토큰"
-            value={totalCacheRead.toLocaleString()}
-            hint="프롬프트 캐싱 절감분"
-          />
+          <StatCard label="캐시 히트 토큰" value={totalCacheRead.toLocaleString()} hint="프롬프트 캐싱 절감분" />
           <StatCard label="누적 비용 (개략)" value={`$${cost.toFixed(3)}`} />
         </div>
 
         {/* 도구 사용 분포 */}
-        <section className="mb-6 rounded-xl border border-[#eaecef] bg-white p-4">
-          <h2 className="text-sm font-bold text-zinc-600">에이전트 도구 호출 분포</h2>
-          <p className="mb-3 text-[11px] text-zinc-400">
-            전문 에이전트가 호출한 도구(함수)별 빈도 — 에이전트가 어떤 행동을 많이 하는지
-          </p>
+        <section className="mb-6 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5">
+          <h2 className="text-[14px] font-bold">에이전트 도구 호출 분포</h2>
+          <p className="eyebrow mb-4 mt-1">Tool calls by function</p>
           {Object.keys(toolCounts).length === 0 && (
-            <p className="text-sm text-zinc-400">아직 도구 호출 기록이 없습니다.</p>
+            <p className="text-[13px] text-[var(--ink-3)]">아직 도구 호출 기록이 없습니다.</p>
           )}
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {Object.entries(toolCounts)
               .sort((a, b) => b[1] - a[1])
               .map(([name, count]) => (
-                <div key={name} className="flex items-center gap-3 text-sm">
-                  <span className="w-52 shrink-0 text-xs">{TOOL_LABELS[name] ?? name}</span>
-                  <div className="h-4 flex-1 overflow-hidden rounded bg-zinc-100">
-                    <div
-                      className="h-full bg-[#03c75a]"
-                      style={{ width: `${(count / toolTotal) * 100}%` }}
-                    />
+                <div key={name} className="flex items-center gap-3 text-[13px]">
+                  <span className="w-48 shrink-0 text-[12.5px] text-[var(--ink-2)]">{TOOL_LABELS[name] ?? name}</span>
+                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-[var(--paper-2)]">
+                    <div className="h-full rounded-full bg-[var(--pine)]" style={{ width: `${(count / toolTotal) * 100}%` }} />
                   </div>
-                  <span className="w-10 text-right text-xs text-zinc-500">{count}</span>
+                  <span className="figure w-10 text-right text-[13px] text-[var(--ink-2)]">{count}</span>
                 </div>
               ))}
           </div>
@@ -195,30 +175,28 @@ export default function AdminPage() {
 
         {/* 2단 인사이트: 핵심 법령 조문 + 니즈 분석 */}
         <div className="mb-6 grid gap-4 md:grid-cols-2">
-          {/* 핵심 법령 조문 랭킹 (그래프 중심성) */}
-          <section className="rounded-xl border border-[#eaecef] bg-white p-4">
-            <h2 className="text-sm font-bold text-zinc-600">
-              소비자 이슈 핵심 법령 조문
+          {/* 핵심 법령 조문 랭킹 */}
+          <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5">
+            <h2 className="flex items-center gap-1.5 text-[14px] font-bold">
+              <span className="font-serif text-[var(--seal)]">法</span> 소비자 이슈 핵심 법령 조문
             </h2>
-            <p className="mb-3 text-[11px] text-zinc-400">
-              법령 지식그래프에서 다른 조문이 가장 많이 참조하는 조문 = 소비자 분쟁이 얽히는 핵심 조항
-              {scale && ` (조문 ${scale.articles}개, 참조 ${scale.refs}개 그래프 기준)`}
+            <p className="eyebrow mb-4 mt-1">
+              가장 많이 참조되는 조문 = 분쟁이 얽히는 핵심
+              {scale && ` · 조문 ${scale.articles} 참조 ${scale.refs}`}
             </p>
             {topArticles.length === 0 ? (
-              <p className="text-sm text-zinc-400">불러오는 중…</p>
+              <p className="text-[13px] text-[var(--ink-3)]">불러오는 중…</p>
             ) : (
-              <ol className="space-y-1.5">
+              <ol className="space-y-2">
                 {topArticles.map((a, i) => (
-                  <li key={a.law + a.article} className="flex items-center gap-2 text-sm">
-                    <span className="w-5 shrink-0 text-right font-mono text-xs text-zinc-400">
-                      {i + 1}
-                    </span>
+                  <li key={a.law + a.article} className="flex items-center gap-2.5 text-[13px]">
+                    <span className="figure w-5 shrink-0 text-right text-[12px] text-[var(--ink-3)]">{i + 1}</span>
                     <span className="flex-1 truncate">
-                      <span className="font-medium">{a.article}</span>{" "}
-                      <span className="text-zinc-500">{a.title}</span>
+                      <span className="font-semibold">{a.article}</span>{" "}
+                      <span className="text-[var(--ink-3)]">{a.title}</span>
                     </span>
-                    <span className="shrink-0 rounded-full bg-purple-50 px-2 py-0.5 text-[11px] text-purple-600">
-                      {a.refs}회 참조
+                    <span className="shrink-0 rounded-full bg-[var(--seal-tint)] px-2 py-0.5 text-[11px] text-[var(--seal-deep)]">
+                      <span className="figure">{a.refs}</span>회 참조
                     </span>
                   </li>
                 ))}
@@ -227,25 +205,24 @@ export default function AdminPage() {
           </section>
 
           {/* 니즈 분석 */}
-          <section className="rounded-xl border border-[#eaecef] bg-white p-4">
-            <h2 className="text-sm font-bold text-zinc-600">고객 니즈 분석</h2>
-            <p className="mb-3 text-[11px] text-zinc-400">
-              실제 대화 질문을 카테고리로 분류 — 어떤 니즈가 많은지 (대화 {rows.length}건 기준)
+          <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5">
+            <h2 className="flex items-center gap-1.5 text-[14px] font-bold">
+              <span className="font-serif text-[var(--pine)]">商</span> 고객 니즈 분석
+            </h2>
+            <p className="eyebrow mb-4 mt-1">
+              대화 질문 분류 · 대화 {rows.length}건
             </p>
             {rows.length === 0 ? (
-              <p className="text-sm text-zinc-400">대화 로그가 쌓이면 표시됩니다.</p>
+              <p className="text-[13px] text-[var(--ink-3)]">대화 로그가 쌓이면 표시됩니다.</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {needCounts.map((n) => (
-                  <div key={n.label} className="flex items-center gap-2 text-sm">
-                    <span className="w-24 shrink-0 text-xs">{n.label}</span>
-                    <div className="h-4 flex-1 overflow-hidden rounded bg-zinc-100">
-                      <div
-                        className="h-full bg-emerald-500"
-                        style={{ width: `${(n.count / needMax) * 100}%` }}
-                      />
+                  <div key={n.label} className="flex items-center gap-2.5 text-[13px]">
+                    <span className="w-24 shrink-0 text-[12px] text-[var(--ink-2)]">{n.label}</span>
+                    <div className="h-3 flex-1 overflow-hidden rounded-full bg-[var(--paper-2)]">
+                      <div className="h-full rounded-full bg-[var(--pine-2)]" style={{ width: `${(n.count / needMax) * 100}%` }} />
                     </div>
-                    <span className="w-8 text-right text-xs text-zinc-500">{n.count}</span>
+                    <span className="figure w-8 text-right text-[13px] text-[var(--ink-2)]">{n.count}</span>
                   </div>
                 ))}
               </div>
@@ -259,39 +236,29 @@ export default function AdminPage() {
             label="법령 인용 검증 통과율"
             value={verifyRate === null ? "—" : `${verifyRate}%`}
             hint={verifyTotal ? `${verifyPass}/${verifyTotal}건 통과` : "검증 기록 없음"}
+            accent
           />
-          <StatCard
-            label="의미 캐시 히트"
-            value={cacheHits.toLocaleString()}
-            hint="반복 법령 질문 재사용"
-          />
-          <StatCard
-            label="PII 마스킹"
-            value="적용 중"
-            hint="카드·주민·전화·이메일 저장 전 마스킹"
-          />
+          <StatCard label="의미 캐시 히트" value={cacheHits.toLocaleString()} hint="반복 법령 질문 재사용" />
+          <StatCard label="PII 마스킹" value="적용 중" hint="카드·주민·전화·이메일 저장 전 마스킹" />
         </div>
 
-        {/* 미충족 수요 — 에이전트가 완전히 답하지 못한 대화 = 개선/사업 기회 */}
-        <section className="mb-6 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-          <h2 className="text-sm font-bold text-amber-800">
-            미충족 수요 · 개선 필요 대화
-          </h2>
-          <p className="mb-3 text-[11px] text-amber-700/70">
-            에이전트가 상품을 못 찾았거나 법령 근거를 확정하지 못한 대화 — 데이터·법령 커버리지를 넓힐 기회
-            {rows.length > 0 && ` (전체 ${rows.length}건 중 ${unmet.length}건)`}
+        {/* 미충족 수요 */}
+        <section className="mb-6 rounded-2xl border border-[var(--seal)]/25 bg-[var(--seal-tint)]/60 p-5">
+          <h2 className="text-[14px] font-bold text-[var(--seal-deep)]">미충족 수요 · 개선 필요 대화</h2>
+          <p className="mb-3 mt-1 text-[11.5px] text-[var(--seal-deep)]/75">
+            상품을 못 찾았거나 법령 근거를 확정하지 못한 대화 — 데이터·법령 커버리지를 넓힐 기회
+            {rows.length > 0 && ` · 전체 ${rows.length}건 중 ${unmet.length}건`}
           </p>
           {rows.length === 0 ? (
-            <p className="text-sm text-amber-700/60">대화 로그가 쌓이면 표시됩니다.</p>
+            <p className="text-[13px] text-[var(--seal-deep)]/60">대화 로그가 쌓이면 표시됩니다.</p>
           ) : unmet.length === 0 ? (
-            <p className="text-sm text-emerald-700">
-              ✓ 최근 대화에서 미충족 사례가 없습니다.
-            </p>
+            <p className="text-[13px] font-medium text-[var(--pine)]">✓ 최근 대화에서 미충족 사례가 없습니다.</p>
           ) : (
             <ul className="space-y-1.5">
               {unmet.slice(0, 6).map((r) => (
-                <li key={r.id} className="truncate text-sm text-amber-900">
-                  • {r.question}
+                <li key={r.id} className="flex gap-2 truncate text-[13px] text-[var(--ink-2)]">
+                  <span className="mt-[7px] h-[5px] w-[5px] shrink-0 rotate-45 rounded-[1px] bg-[var(--seal)]" />
+                  {r.question}
                 </li>
               ))}
             </ul>
@@ -299,42 +266,39 @@ export default function AdminPage() {
         </section>
 
         {/* 대화 목록 */}
-        <section className="rounded-xl border border-[#eaecef] bg-white">
-          <h2 className="border-b border-zinc-100 p-4 text-sm font-bold text-zinc-600">
-            최근 대화 {loading && "(불러오는 중…)"}
+        <section className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--card)]">
+          <h2 className="border-b border-[var(--line)] p-4 text-[14px] font-bold">
+            최근 대화{" "}
+            {loading && <span className="text-[12px] font-normal text-[var(--ink-3)]">(불러오는 중…)</span>}
           </h2>
-          <ul className="divide-y divide-zinc-100">
+          <ul className="divide-y divide-[var(--line-soft)]">
             {rows.map((r) => (
               <li
                 key={r.id}
                 onClick={() => setSelected(selected?.id === r.id ? null : r)}
-                className="cursor-pointer px-4 py-3 hover:bg-zinc-50"
+                className="cursor-pointer px-4 py-3 transition hover:bg-[var(--paper)]"
               >
                 <div className="flex items-baseline justify-between gap-4">
-                  <span className="truncate text-sm font-medium">{r.question}</span>
-                  <span className="shrink-0 text-xs text-zinc-400">
+                  <span className="truncate text-[13.5px] font-medium">{r.question}</span>
+                  <span className="figure shrink-0 text-[11px] text-[var(--ink-3)]">
                     {new Date(r.created_at).toLocaleString("ko-KR")}
                   </span>
                 </div>
-                <div className="mt-0.5 flex gap-3 text-xs text-zinc-500">
-                  <span>
-                    도구 {(r.traces ?? []).filter((t) => t.kind === "tool_use").length}회
-                  </span>
-                  <span>
-                    토큰 {r.usage?.input_tokens ?? 0}/{r.usage?.output_tokens ?? 0}
-                  </span>
+                <div className="mt-1 flex gap-3 font-mono text-[11px] text-[var(--ink-3)]">
+                  <span>도구 <span className="figure">{(r.traces ?? []).filter((t) => t.kind === "tool_use").length}</span>회</span>
+                  <span>토큰 <span className="figure">{r.usage?.input_tokens ?? 0}</span>/<span className="figure">{r.usage?.output_tokens ?? 0}</span></span>
                 </div>
                 {selected?.id === r.id && (
-                  <div className="mt-3 space-y-2 rounded-lg bg-zinc-50 p-3 text-xs">
+                  <div className="mt-3 space-y-2 rounded-xl bg-[var(--paper)] p-3 text-[12px]">
                     <div>
-                      <span className="font-semibold text-zinc-600">트레이스: </span>
-                      {(r.traces ?? [])
-                        .map((t) =>
-                          t.kind === "tool_use" ? `→ ${t.name}` : `✔ ${t.summary}`
-                        )
-                        .join("  ")}
+                      <span className="font-semibold text-[var(--ink-2)]">트레이스: </span>
+                      <span className="font-mono text-[11px] text-[var(--ink-3)]">
+                        {(r.traces ?? [])
+                          .map((t) => (t.kind === "tool_use" ? `→ ${t.name}` : `✔ ${t.summary}`))
+                          .join("  ")}
+                      </span>
                     </div>
-                    <p className="whitespace-pre-wrap text-zinc-600">
+                    <p className="whitespace-pre-wrap text-[var(--ink-2)]">
                       {r.answer?.slice(0, 600)}
                       {(r.answer?.length ?? 0) > 600 && "…"}
                     </p>
@@ -344,7 +308,7 @@ export default function AdminPage() {
             ))}
           </ul>
           {!loading && rows.length === 0 && (
-            <p className="p-4 text-sm text-zinc-400">대화 기록이 없습니다.</p>
+            <p className="p-4 text-[13px] text-[var(--ink-3)]">대화 기록이 없습니다.</p>
           )}
         </section>
       </div>
@@ -352,12 +316,14 @@ export default function AdminPage() {
   );
 }
 
-function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function StatCard({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: boolean }) {
   return (
-    <div className="rounded-xl border border-[#eaecef] bg-white p-4">
-      <p className="text-xs text-zinc-500">{label}</p>
-      <p className="mt-1 text-lg font-bold">{value}</p>
-      {hint && <p className="text-[11px] text-zinc-400">{hint}</p>}
+    <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4">
+      <p className="text-[11.5px] text-[var(--ink-3)]">{label}</p>
+      <p className={`figure mt-2 text-[26px] font-semibold leading-none ${accent ? "text-[var(--pine)]" : "text-[var(--ink)]"}`}>
+        {value}
+      </p>
+      {hint && <p className="mt-1.5 text-[11px] text-[var(--ink-3)]">{hint}</p>}
     </div>
   );
 }

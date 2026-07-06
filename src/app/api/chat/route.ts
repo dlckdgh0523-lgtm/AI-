@@ -429,6 +429,15 @@ export async function POST(req: Request) {
                 return { type: "tool_result", tool_use_id: tu.id, content: report };
               } catch (e) {
                 const message = e instanceof Error ? e.message : String(e);
+                // 도구 실패를 작업기록에 노출 (이전엔 조용히 삼켜져 원인 파악이 어려웠음)
+                emit({
+                  type: "tool_result",
+                  agent: direct ? directAgent : tu.name === "delegate_shopping" ? "shopping" : "law",
+                  id: tu.id,
+                  name: tu.name,
+                  summary: `⚠️ 도구 오류: ${message.slice(0, 160)}`,
+                  result: null,
+                });
                 return {
                   type: "tool_result",
                   tool_use_id: tu.id,

@@ -223,3 +223,10 @@ create policy "allow insert" on conversations for insert to anon with check (tru
 - **평가셋 규모**: 17문항 · 저자 작성 gold. 소비자분쟁조정 사례 기반 확장과 LLM 저지 도입 여지.
 - **후기 데이터**: 블로그 검색 스니펫 수준. 후기 본문 수집→임베딩하면 리뷰 RAG로 확장 가능.
 - **법률 자문 아님**: 일반 정보 안내이며 답변에 해당 고지를 포함.
+
+##  AI 개발 도구 사용 여부
+
+Claude : skill 을 사용해 디자인을 리팩토링 했습니다.
+Claude code : API 구현 및 리팩터링 과정에서 보조 도구로 활용했습니다.
+Claude design : UI/UX 아이디어 구현 , 디자인 초안을 잡았습니다 . 
+VoYaGe Ai: 법령 임베딩 생성했습니다. 

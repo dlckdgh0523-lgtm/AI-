@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Seal } from "@/components/brand";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -80,43 +81,6 @@ const EXAMPLE_GROUPS: {
     ],
   },
 ];
-
-/* ── 인주(印朱) 검증 도장 — 시그니처 ─────────────────────── */
-function Seal({ size = 96, uid = "s", stamp = false }: { size?: number; uid?: string; stamp?: boolean }) {
-  const pid = `sealArc-${uid}`;
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      className={`seal-mark ${stamp ? "seal-stamp" : ""}`}
-      role="img"
-      aria-label="근거 검증 도장"
-    >
-      <defs>
-        <path id={pid} d="M50,50 m -37,0 a 37,37 0 1,1 74,0 a 37,37 0 1,1 -74,0" />
-      </defs>
-      <circle className="seal-ring" cx="50" cy="50" r="47" strokeWidth="2.4" />
-      <circle className="seal-ring" cx="50" cy="50" r="41.5" strokeWidth="0.9" />
-      <text className="seal-arc" fontSize="7">
-        <textPath href={`#${pid}`} startOffset="1%">
-          근거 검증 · 確認 · CITATION VERIFIED ·{" "}
-        </textPath>
-      </text>
-      <text
-        className="seal-hanja"
-        x="50"
-        y="51"
-        fontSize="29"
-        textAnchor="middle"
-        dominantBaseline="central"
-        letterSpacing="1"
-      >
-        確認
-      </text>
-    </svg>
-  );
-}
 
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -305,7 +269,7 @@ export default function Home() {
               href="/about"
               className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[var(--ink-2)] transition hover:bg-[var(--paper-2)]"
             >
-              기술 문서
+              소개
             </a>
           </nav>
         </header>
